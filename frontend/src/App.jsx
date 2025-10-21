@@ -1,44 +1,49 @@
 import { useState } from "react";
 import "./App.css";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || window.location.origin;
+
 function App() {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [html, setHtml] = useState("");
-
-  // ✅ Use backend API through Nginx reverse proxy
-  const API_URL = import.meta.env.VITE_API_URL || "http://51.75.240.22:8090";
+  const [structure, setStructure] = useState(null);
 
   const generateScreen = async () => {
-    if (!description.trim()) {
-      setError("⚠️ Please enter a description before generating.");
+    const trimmed = description.trim();
+    if (!trimmed) {
+      setError("Please enter a description before generating.");
       return;
     }
 
     setLoading(true);
     setError("");
     setHtml("");
+    setStructure(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/generate`, {
+      const response = await fetch(`${API_BASE_URL}/api/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description }),
+        body: JSON.stringify({ description: trimmed }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(`Request failed: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
-      // Accept either { html } or { code } as response key
+      setStructure(data.structure ?? null);
       setHtml(data.code || data.html || "<p>No HTML returned.</p>");
     } catch (err) {
-      console.error("❌ Error generating screen:", err);
-      setError(err.message || "Unknown error occurred");
+      console.error("Error generating screen:", err);
+      const message = err instanceof Error ? err.message : "Unknown error occurred";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -46,10 +51,8 @@ function App() {
 
   return (
     <div className="app-root">
-      {/* === LEFT SIDEBAR === */}
       <div className="sidebar">
         <div className="header">
-          {/* ✅ Inline pink brain SVG logo for clarity */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 64 64"
@@ -68,13 +71,10 @@ function App() {
               d="M32 2C18 2 8 12 8 24c0 6 3 10 6 13-1 4 0 8 3 11 3 3 8 5 15 5s12-2 15-5c3-3 4-7 3-11 3-3 6-7 6-13 0-12-10-22-24-22zm-8 6c3-1 7 1 9 4s2 7 1 10l-3-1c1-3 0-6-2-8s-5-3-7-2c-2 1-3 3-3 5h-3c0-3 2-6 5-8zm16 0c3 2 5 5 5 8h-3c0-2-1-4-3-5s-5 0-7 2-3 5-2 8l-3 1c-1-3-1-7 1-10s6-5 9-4zm-17 27c-2-1-3-2-3-3s1-2 3-3c2 1 3 2 3 3s-1 2-3 3zm18 0c-2-1-3-2-3-3s1-2 3-3c2 1 3 2 3 3s-1 2-3 3zm-9 14c-4 0-7-1-9-3s-3-4-2-7l3 1c0 2 1 4 3 5s4 2 5 2 4-1 5-2 3-3 3-5l3-1c1 3 0 5-2 7s-5 3-9 3z"
             />
           </svg>
-
           <h1>WebGen AI</h1>
         </div>
 
-        <p className="subtitle">
-          Generate a complete web page just by describing it.
-        </p>
+        <p className="subtitle">Generate a complete web page just by describing it.</p>
 
         <textarea
           className="description-input"
@@ -84,10 +84,16 @@ function App() {
         />
 
         <button onClick={generateScreen} disabled={loading}>
-          {loading ? "⏳ Generating..." : "🚀 Generate Screen"}
+          {loading ? "Generating..." : "Generate Screen"}
         </button>
 
-        {error && <p className="error">❌ {error}</p>}
+        {error && <p className="error">{error}</p>}
+
+        {structure && (
+          <pre className="structure-preview">
+            {JSON.stringify(structure, null, 2)}
+          </pre>
+        )}
 
         <footer>
           <p>
@@ -96,10 +102,9 @@ function App() {
         </footer>
       </div>
 
-      {/* === RIGHT SIDE PREVIEW === */}
       <div className="output-container">
         {loading ? (
-          <div className="loading">✨ Generating your page...</div>
+          <div className="loading">Generating your page...</div>
         ) : (
           <iframe
             title="Generated Page"

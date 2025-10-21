@@ -5,9 +5,9 @@ services:
     build: ./backend-api
     container_name: webgen-ai-backend-api
     ports:
-      - "8010:8000"
+      - "8100:8000"
     environment:
-      - AI_ENGINE_URL=http://webgen-ai-ai-engine:5005
+      - AI_ENGINE_URL=http://ai-engine:5005
     depends_on:
       - ai-engine
     networks:
@@ -17,9 +17,9 @@ services:
     build: ./ai-engine
     container_name: webgen-ai-ai-engine
     ports:
-      - "5005:5005"
+      - "8505:5005"
     environment:
-      - OLLAMA_URL=http://127.0.0.1:11434
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
     networks:
       - webnet
 

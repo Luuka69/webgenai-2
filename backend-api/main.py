@@ -1,4 +1,5 @@
 import os
+
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,15 +7,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ✅ Correct internal Docker hostname for AI engine
-AI_ENGINE_URL = os.getenv("AI_ENGINE_URL", "http://webgen-ai-ai-engine:5005")
-
+AI_ENGINE_URL = os.getenv("AI_ENGINE_URL", "http://127.0.0.1:5005")
 BACKEND_HOST = os.getenv("BACKEND_HOST", "0.0.0.0")
-BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8000"))
+BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8010"))
 
 app = FastAPI(title="WebGen AI Backend")
 
-# ---- CORS ----
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,19 +21,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---- Routes ----
+
 @app.post("/api/generate")
 async def generate(request: Request):
     data = await request.json()
-    description = data.get("description", "")
+    description = data.get("description", "").strip()
 
-    async with httpx.AsyncClient() as client:
+    if not description:
+        return {"error": "Description is required"}
+
+    timeout = httpx.Timeout(600.0, connect=10.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
         try:
-            response = await client.post(f"{AI_ENGINE_URL}/process", json={"description": description})
+            response = await client.post(
+                f"{AI_ENGINE_URL}/process",
+                json={"description": description},
+            )
             response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            return {"error": f"Backend could not reach AI Engine: {str(e)}"}
+        except httpx.HTTPStatusError as exc:
+            return {
+                "error": f"AI engine returned {exc.response.status_code}: {exc.response.text}"
+            }
+        except httpx.RequestError as exc:
+            return {"error": f"Backend could not reach AI engine: {exc}"}
+
+    try:
+        return response.json()
+    except ValueError:
+        return {"error": "AI engine returned invalid JSON"}
+
 
 @app.get("/")
 def root():
@@ -44,4 +58,5 @@ def root():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host=BACKEND_HOST, port=BACKEND_PORT)

@@ -90,6 +90,19 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.structure-preview {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid #1e293b;
+  margin-bottom: 20px;
+}
+
 .error {
   color: #d9534f;
   text-align: center;
