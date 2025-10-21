@@ -1,0 +1,76 @@
+version: '3.9'
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend-api
+    networks:
+      - webgen-net
+
+  backend-api:
+    build: ./backend-api
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      - ai-engine
+      - db
+    networks:
+      - webgen-net
+
+  ai-engine:
+    build: ./ai-engine
+    ports:
+      - "8500:8500"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      - ollama
+    networks:
+      - webgen-net
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    volumes:
+      - ollama_models:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+    networks:
+      - webgen-net
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=webgen
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - webgen-net
+
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend-api
+    networks:
+      - webgen-net
+
+networks:
+  webgen-net:
+
+volumes:
+  pgdata:
+  ollama_models:
