@@ -7,17 +7,12 @@ function App() {
   const [error, setError] = useState("");
   const [html, setHtml] = useState("");
 
-  // ✅ Smart API URL resolution
-  // - When running locally: uses localhost:8010
-  // - When inside Docker frontend: uses backend-api:8000 (Docker network)
-  const API_URL =
-    import.meta.env.MODE === "production"
-      ? "http://backend-api:8000"
-      : import.meta.env.VITE_API_URL || "http://localhost:8010";
+  // ✅ Use backend API through Nginx reverse proxy
+  const API_URL = import.meta.env.VITE_API_URL || "http://51.75.240.22:8090";
 
   const generateScreen = async () => {
     if (!description.trim()) {
-      setError("Please enter a description before generating.");
+      setError("⚠️ Please enter a description before generating.");
       return;
     }
 
@@ -39,10 +34,11 @@ function App() {
       const data = await response.json();
       if (data.error) throw new Error(data.error);
 
+      // Accept either { html } or { code } as response key
       setHtml(data.code || data.html || "<p>No HTML returned.</p>");
     } catch (err) {
-      console.error("Error generating screen:", err);
-      setError(err.message || "Could not connect to backend.");
+      console.error("❌ Error generating screen:", err);
+      setError(err.message || "Unknown error occurred");
     } finally {
       setLoading(false);
     }
@@ -50,9 +46,10 @@ function App() {
 
   return (
     <div className="app-root">
+      {/* === LEFT SIDEBAR === */}
       <div className="sidebar">
         <div className="header">
-          {/* Inline SVG logo */}
+          {/* ✅ Inline pink brain SVG logo for clarity */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 64 64"
@@ -76,7 +73,7 @@ function App() {
         </div>
 
         <p className="subtitle">
-          Generate a full web screen just by describing it.
+          Generate a complete web page just by describing it.
         </p>
 
         <textarea
@@ -99,6 +96,7 @@ function App() {
         </footer>
       </div>
 
+      {/* === RIGHT SIDE PREVIEW === */}
       <div className="output-container">
         {loading ? (
           <div className="loading">✨ Generating your page...</div>
