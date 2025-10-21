@@ -10,6 +10,7 @@ services:
       - AI_ENGINE_URL=http://ai-engine:5005
     depends_on:
       - ai-engine
+      - ollama
     networks:
       - webnet
 
@@ -19,7 +20,10 @@ services:
     ports:
       - "8505:5005"
     environment:
-      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-mistral}
+    depends_on:
+      - ollama
     networks:
       - webnet
 
@@ -33,6 +37,20 @@ services:
     networks:
       - webnet
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: webgen-ai-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - webnet
+
 networks:
   webnet:
     driver: bridge
+
+volumes:
+  ollama-data:
