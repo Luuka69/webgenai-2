@@ -1,6 +1,6 @@
 services:
   backend-api:
-    build: ./backend
+    build: ./backend-api
     container_name: webgen-ai-backend-api
     ports:
       - "8100:8000"
