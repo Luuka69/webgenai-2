@@ -1,110 +1,73 @@
-import { useState } from "react";
-import "./App.css";
+import React, { useState } from "react";
 
 function App() {
-  const [description, setDescription] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [html, setHtml] = useState("");
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://51.75.240.22:8010";
-
-  const generateScreen = async () => {
-    if (!description.trim()) {
-      setError("Please enter a description before generating.");
-      return;
-    }
+  const handleGenerate = async () => {
+    if (!prompt.trim()) return;
 
     setLoading(true);
-    setError("");
-    setHtml("");
+    setOutput("Generating...");
 
     try {
-      const response = await fetch(`${API_URL}/api/generate`, {
+      const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description }),
+        body: JSON.stringify({ description: prompt }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error("Failed to fetch API");
 
       const data = await response.json();
-      if (data.error) throw new Error(data.error);
-
-      setHtml(data.code || data.html || "<p>No HTML returned.</p>");
-    } catch (err) {
-      console.error("Error generating screen:", err);
-      setError(err.message || "Unknown error");
+      setOutput(data.result || "No result received.");
+    } catch (error) {
+      console.error(error);
+      setOutput("Error: Could not connect to backend.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="app-root">
-      <div className="sidebar">
-        <div className="header">
-          {/* Inline SVG logo */}
-          <svg
-  xmlns="http://www.w3.org/2000/svg"
-  viewBox="0 0 64 64"
-  width="60"
-  height="60"
-  className="logo"
->
-  <defs>
-    <linearGradient id="brainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stopColor="#ff4b91" />
-      <stop offset="100%" stopColor="#ff77d4" />
-    </linearGradient>
-  </defs>
-  <path
-    fill="url(#brainGradient)"
-    d="M32 2C18 2 8 12 8 24c0 6 3 10 6 13-1 4 0 8 3 11 3 3 8 5 15 5s12-2 15-5c3-3 4-7 3-11 3-3 6-7 6-13 0-12-10-22-24-22zm-8 6c3-1 7 1 9 4s2 7 1 10l-3-1c1-3 0-6-2-8s-5-3-7-2c-2 1-3 3-3 5h-3c0-3 2-6 5-8zm16 0c3 2 5 5 5 8h-3c0-2-1-4-3-5s-5 0-7 2-3 5-2 8l-3 1c-1-3-1-7 1-10s6-5 9-4zm-17 27c-2-1-3-2-3-3s1-2 3-3c2 1 3 2 3 3s-1 2-3 3zm18 0c-2-1-3-2-3-3s1-2 3-3c2 1 3 2 3 3s-1 2-3 3zm-9 14c-4 0-7-1-9-3s-3-4-2-7l3 1c0 2 1 4 3 5s4 2 5 2 4-1 5-2 3-3 3-5l3-1c1 3 0 5-2 7s-5 3-9 3z"
-  />
-</svg>
-
-
-          <h1>WebGen AI</h1>
+    <div className="flex h-screen">
+      <div className="w-1/3 bg-white p-8 border-r">
+        <div className="flex items-center space-x-3 mb-8">
+          <img src="/logo.svg" alt="WebGen Logo" className="h-12 w-12" />
+          <h1 className="text-3xl font-bold text-gray-900">WebGen AI</h1>
         </div>
 
-        <p className="subtitle">
+        <p className="text-gray-500 mb-4">
           Generate a full web screen just by describing it.
         </p>
 
         <textarea
-          className="description-input"
-          placeholder="Example: A login page with a blue header, username & password fields, and a 'Login' button."
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Describe your web page idea..."
+          className="w-full h-40 p-3 bg-gray-900 text-white rounded-md resize-none focus:ring-2 focus:ring-blue-400"
         />
 
-        <button onClick={generateScreen} disabled={loading}>
-          {loading ? "⏳ Generating..." : "🚀 Generate Screen"}
+        <button
+          onClick={handleGenerate}
+          disabled={loading}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 mt-4 rounded-md font-semibold flex items-center justify-center"
+        >
+          🚀 {loading ? "Generating..." : "Generate Screen"}
         </button>
 
-        {error && <p className="error">❌ {error}</p>}
-
-        <footer>
-          <p>
-            Powered by <strong>Ollama + Mistral</strong>
-          </p>
-        </footer>
+        <p className="mt-6 text-center text-gray-400 text-sm">
+          Powered by <span className="font-semibold">Ollama + Mistral</span>
+        </p>
       </div>
 
-      <div className="output-container">
-        {loading ? (
-          <div className="loading">✨ Generating your page...</div>
-        ) : (
-          <iframe
-            title="Generated Page"
-            id="generated-frame"
-            srcDoc={html || "<p>No output yet.</p>"}
-            sandbox="allow-scripts allow-same-origin"
-          ></iframe>
-        )}
+      <div className="w-2/3 p-8 bg-gray-50">
+        <div className="bg-white shadow-lg rounded-lg p-6 h-full overflow-auto">
+          <pre className="text-sm text-gray-800 whitespace-pre-wrap">
+            {output || "No output yet."}
+          </pre>
+        </div>
       </div>
     </div>
   );
