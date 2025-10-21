@@ -7,7 +7,7 @@ function App() {
   const [error, setError] = useState("");
   const [html, setHtml] = useState("");
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8010";
+  const API_URL = import.meta.env.VITE_API_URL || "http://51.75.240.22:8010";
 
   const generateScreen = async () => {
     if (!description.trim()) {
