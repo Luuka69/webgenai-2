@@ -1,16 +1,50 @@
+import os
+import httpx
 from fastapi import FastAPI, Request
-import os, requests
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
-app = FastAPI()
-AI_ENGINE_URL = os.getenv("AI_ENGINE_URL", "http://ai-engine:8500")
+# Load environment variables
+load_dotenv()
+
+AI_ENGINE_URL = os.getenv("AI_ENGINE_URL", "http://127.0.0.1:5005")
+BACKEND_HOST = os.getenv("BACKEND_HOST", "0.0.0.0")
+BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8010"))
+
+app = FastAPI(title="WebGen AI Backend")
+
+# ---- CORS ----
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ---- Routes ----
+@app.post("/api/generate")
+async def generate(request: Request):
+    """
+    Receives a text description and sends it to the AI Engine,
+    which talks to Ollama to generate code.
+    """
+    data = await request.json()
+    description = data.get("description", "")
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(f"{AI_ENGINE_URL}/process", json={"description": description})
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            return {"error": str(e)}
 
 @app.get("/")
 def root():
-    return {"status": "Backend API running"}
+    return {"message": "WebGen AI Backend running", "ai_engine_url": AI_ENGINE_URL}
 
-@app.post("/generate")
-def generate(request: Request):
-    data = request.json()
-    description = data.get("description", "")
-    response = requests.post(f"{AI_ENGINE_URL}/generate", json={"description": description})
-    return response.json()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host=BACKEND_HOST, port=BACKEND_PORT)
