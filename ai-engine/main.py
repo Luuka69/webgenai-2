@@ -1,6 +1,7 @@
 import json
 import os
-from typing import Any, Dict
+import re
+from typing import Any, Dict, Optional, Tuple
 
 import requests
 from flask import Flask, jsonify, request
@@ -18,15 +19,32 @@ AI_ENGINE_PORT = int(os.getenv("AI_ENGINE_PORT", "5005"))
 app = Flask(__name__)
 
 
+# ...existing code...
 def _build_prompt(description: str) -> str:
     """Create the instruction sent to the LLM."""
     return (
-        "You are a web interface generator AI.\n"
-        f'Given this description: "{description}",\n'
-        "output a JSON object with two keys:\n"
-        '1. \"structure\": structured component description\n'
-        '2. \"code\": full HTML+CSS for the page'
+        "You are a professional front-end engineer AI that outputs a single JSON object only.\n"
+        "Output requirements (must follow exactly):\n"
+        "- Return EXACTLY one JSON object with only these two keys: \"structure\" and \"code\".\n"
+        "- Do NOT include markdown fences, explanations, extra keys, or surrounding text.\n"
+        "- \"code\" must be a single string containing a complete, standalone HTML document beginning with \"<!DOCTYPE html>\".\n"
+        "- The HTML must include: <meta name=\"viewport\">, semantic elements (header, main, nav, footer, etc.), accessible attributes (aria-*, alt, labels), and a single <style> block in <head> containing all CSS.\n"
+        "- Use mobile-first responsive CSS (flexbox and/or grid), avoid external resources (no external fonts, CDNs, or scripts). Images may be referenced by URL only if explicitly allowed—prefer placeholders.\n"
+        "- Use plain, modern CSS (no frameworks). Keep class/id names semantic and unique. Prefer classes for styling and minimal inline styles.\n"
+        "- Ensure CSS is valid, avoids duplicate rules, and includes sensible defaults for typography and spacing. Include comments inside the HTML/CSS only if necessary (these must remain inside the \"code\" string).\n"
+        "- \"structure\" must be a JSON object describing the page layout in a machine-readable way. Provide a top-level \"layout\" array of components; each component is an object with keys: type, id, text (or content), props (dictionary of attributes), styles (CSS properties dictionary), and children (array).\n"
+        "Example response (follow this structure exactly):\n"
+        "{\n"
+        "  \"structure\": {\n"
+        "    \"layout\": [\n"
+        "      {\"type\": \"header\", \"id\": \"site-header\", \"text\": \"Site Title\", \"props\": {\"role\": \"banner\"}, \"styles\": {\"display\": \"flex\"}, \"children\": []}\n"
+        "    ]\n"
+        "  },\n"
+        "  \"code\": \"<!DOCTYPE html>...\"\n"
+        "}\n"
+        f'Description: \"{description}\"\n'
     )
+# ...existing code...
 
 
 def _call_ollama(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -38,6 +56,55 @@ def _call_ollama(payload: Dict[str, Any]) -> Dict[str, Any]:
     )
     response.raise_for_status()
     return response.json()
+
+
+def _strip_code_fences(text: str) -> str:
+    """Remove surrounding Markdown code fences that break iframe rendering."""
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```[\w-]*\s*", "", stripped)
+    if stripped.endswith("```"):
+        stripped = re.sub(r"\s*```$", "", stripped)
+    return stripped.strip()
+
+
+def _extract_json_block(text: str) -> Optional[str]:
+    """Find the first JSON object in the text."""
+    match = re.search(r"\{[\s\S]*\}", text)
+    return match.group(0) if match else None
+
+
+def _parse_generated_payload(generated: Any) -> Tuple[Optional[Any], str, str]:
+    """
+    Normalize Ollama's response into (structure, code, raw_text).
+    Returns the raw normalized text so the UI can surface it for debugging.
+    """
+    if isinstance(generated, dict):
+        structure = generated.get("structure")
+        code = generated.get("code", "") or ""
+        raw_text = json.dumps(generated)
+        return structure, code, raw_text
+
+    if not isinstance(generated, str):
+        return None, "", ""
+
+    raw_text = generated.strip()
+    cleaned = _strip_code_fences(raw_text)
+
+    json_block = _extract_json_block(cleaned)
+    if json_block:
+        try:
+            parsed = json.loads(json_block)
+            if isinstance(parsed, dict):
+                return (
+                    parsed.get("structure"),
+                    parsed.get("code", "") or "",
+                    cleaned,
+                )
+        except json.JSONDecodeError:
+            pass
+
+    return None, cleaned, cleaned
 
 
 @app.route("/")
@@ -75,25 +142,13 @@ def process():
     if isinstance(generated, str):
         generated = generated.strip()
 
-    structure = None
-    code = ""
-
-    if generated:
-        try:
-            parsed = json.loads(generated)
-            if isinstance(parsed, dict):
-                structure = parsed.get("structure")
-                code = parsed.get("code", "") or ""
-            else:
-                code = generated
-        except json.JSONDecodeError:
-            code = generated
+    structure, code, raw_text = _parse_generated_payload(generated)
 
     return jsonify(
         {
             "structure": structure,
             "code": code or "",
-            "raw_response": generated,
+            "raw_response": raw_text,
         }
     )
 
