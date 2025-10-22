@@ -25,26 +25,20 @@ app = Flask(__name__)
 def _build_prompt(description: str) -> str:
     """Create the instruction sent to the LLM."""
     return (
-        "You are a professional front-end engineer AI that outputs a single JSON object only.\n"
-        "Output requirements (must follow exactly):\n"
-        "- Return EXACTLY one JSON object with only these two keys: \"structure\" and \"code\".\n"
-        "- Do NOT include markdown fences, explanations, extra keys, or surrounding text.\n"
-        "- \"code\" must be a single string containing a complete, standalone HTML document beginning with \"<!DOCTYPE html>\".\n"
-        "- The HTML must include: <meta name=\"viewport\">, semantic elements (header, main, nav, footer, etc.), accessible attributes (aria-*, alt, labels), and a single <style> block in <head> containing all CSS.\n"
-        "- Use mobile-first responsive CSS (flexbox and/or grid), avoid external resources (no external fonts, CDNs, or scripts). Images may be referenced by URL only if explicitly allowed—prefer placeholders.\n"
-        "- Use plain, modern CSS (no frameworks). Keep class/id names semantic and unique. Prefer classes for styling and minimal inline styles.\n"
-        "- Ensure CSS is valid, avoids duplicate rules, and includes sensible defaults for typography and spacing. Include comments inside the HTML/CSS only if necessary (these must remain inside the \"code\" string).\n"
-        "- \"structure\" must be a JSON object describing the page layout in a machine-readable way. Provide a top-level \"layout\" array of components; each component is an object with keys: type, id, text (or content), props (dictionary of attributes), styles (CSS properties dictionary), and children (array).\n"
-        "Example response (follow this structure exactly):\n"
-        "{\n"
-        "  \"structure\": {\n"
-        "    \"layout\": [\n"
-        "      {\"type\": \"header\", \"id\": \"site-header\", \"text\": \"Site Title\", \"props\": {\"role\": \"banner\"}, \"styles\": {\"display\": \"flex\"}, \"children\": []}\n"
-        "    ]\n"
-        "  },\n"
-        "  \"code\": \"<!DOCTYPE html>...\"\n"
-        "}\n"
-        f'Description: \"{description}\"\n'
+        "You are a professional front-end engineer AI.\n"
+        "Return exactly ONE JSON object with only these keys: \"structure\" and \"code\".\n"
+        "\"code\" requirements:\n"
+        "- Must be a single string containing a complete HTML5 document starting with <!DOCTYPE html>.\n"
+        "- Include <head> with <meta charset>, <meta name=\"viewport\">, a descriptive <title>, and exactly one <style> block holding all CSS.\n"
+        "- Use semantic, accessible markup (header/nav/main/footer, labels, alt text, aria-* when appropriate).\n"
+        "- Apply modern responsive CSS (flexbox/grid), neutral professional palette, no external assets or scripts.\n"
+        "- NEVER leave \"code\" empty—regenerate until the document is present and valid.\n"
+        "\"structure\" requirements:\n"
+        "- Summarize the layout hierarchy as JSON (e.g., top-level \"layout\" array); use null only if you truly cannot provide it.\n"
+        "Formatting rules:\n"
+        "- No markdown fences, commentary, additional keys, or trailing text outside the JSON object.\n"
+        "- Escape quotes so the JSON parses cleanly.\n"
+        f'Description: \"{description}\"'
     )
 # ...existing code...
 
