@@ -103,6 +103,63 @@ def _parse_generated_payload(generated: Any) -> Tuple[Optional[Any], str, str]:
     return None, cleaned, cleaned
 
 
+def _is_valid_html(candidate: str) -> bool:
+    """Check if the given string looks like valid HTML output."""
+    if not isinstance(candidate, str):
+        return False
+    lowered = candidate.strip().lower()
+    return bool(lowered) and ("<!doctype" in lowered or "<html" in lowered)
+
+
+def _generate_with_retry(description: str, retries: int = 1) -> Dict[str, Any]:
+    """
+    Call Ollama to generate the page, validating output.
+    Retry up to `retries` times if HTML is missing or malformed.
+    """
+    payload = {
+        "model": OLLAMA_MODEL,
+        "prompt": _build_prompt(description),
+        "stream": False,
+        "format": "json",
+    }
+
+    for attempt in range(retries + 1):
+        try:
+            ollama_payload = _call_ollama(payload)
+        except requests.RequestException as exc:
+            return {"error": f"Ollama request failed: {exc}"}
+        except ValueError:
+            return {"error": "Ollama returned invalid JSON"}
+
+        generated = ollama_payload.get("response", "")
+        if isinstance(generated, str):
+            generated = generated.strip()
+
+        structure, code, raw_text = _parse_generated_payload(generated)
+
+        if _is_valid_html(code):
+            return {
+                "structure": structure,
+                "code": code or "",
+                "raw_response": raw_text,
+            }
+
+        if attempt < retries:
+            print("⚠️ Model failed to produce HTML — retrying...")
+            payload["prompt"] = _build_prompt(description)
+            payload["prompt"] += (
+                "\n\nYour last answer omitted the HTML document. "
+                "Return the same JSON schema with a 'code' field containing a valid HTML5 document."
+            )
+        else:
+            return {
+                "error": "Model failed to produce valid HTML after retry.",
+                "raw_response": raw_text,
+            }
+
+    return {"error": "Unknown generation failure."}
+
+
 def _camel_to_kebab(value: str) -> str:
     """Convert camelCase style keys into kebab-case for CSS."""
     return re.sub(r"(?<!^)(?=[A-Z])", "-", value).lower()
@@ -277,41 +334,13 @@ def process():
     if not description:
         return jsonify({"error": "Description is required"}), 400
 
-    payload = {
-        "model": OLLAMA_MODEL,
-        "prompt": _build_prompt(description),
-        "stream": False,
-        "format": "json",
-    }
+    result = _generate_with_retry(description, retries=1)
 
-    try:
-        ollama_payload = _call_ollama(payload)
-    except requests.RequestException as exc:
-        return jsonify({"error": f"Ollama request failed: {exc}"}), 502
-    except ValueError:
-        return jsonify({"error": "Ollama returned invalid JSON"}), 502
+    if "error" in result:
+        status = 502 if "raw_response" in result else 502
+        return jsonify(result), status
 
-    generated = ollama_payload.get("response", "")
-    if isinstance(generated, str):
-        generated = generated.strip()
-
-    structure, code, raw_text = _parse_generated_payload(generated)
-
-    if structure is not None and (not code or not code.strip()):
-        try:
-            rendered = _render_structure_html(structure)
-        except Exception:
-            rendered = ""
-        if rendered:
-            code = rendered
-
-    return jsonify(
-        {
-            "structure": structure,
-            "code": code or "",
-            "raw_response": raw_text,
-        }
-    )
+    return jsonify(result)
 
 
 if __name__ == "__main__":
