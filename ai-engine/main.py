@@ -1,7 +1,9 @@
+import html
 import json
 import os
 import re
-from typing import Any, Dict, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any, Dict, Optional, Tuple, Union
 
 import requests
 from flask import Flask, jsonify, request
@@ -107,6 +109,163 @@ def _parse_generated_payload(generated: Any) -> Tuple[Optional[Any], str, str]:
     return None, cleaned, cleaned
 
 
+def _camel_to_kebab(value: str) -> str:
+    """Convert camelCase style keys into kebab-case for CSS."""
+    return re.sub(r"(?<!^)(?=[A-Z])", "-", value).lower()
+
+
+def _styles_to_inline(styles: Dict[str, Any]) -> str:
+    """Transform a style dict into an inline CSS string."""
+    if not styles:
+        return ""
+    parts = []
+    for key, val in styles.items():
+        if val is None:
+            continue
+        parts.append(f"{_camel_to_kebab(str(key))}: {val}")
+    return "; ".join(parts)
+
+
+def _normalize_attributes(props: Dict[str, Any]) -> Dict[str, str]:
+    """Flatten prop dictionaries to HTML attributes."""
+    attrs: Dict[str, str] = {}
+    for key, value in props.items():
+        if value is None:
+            continue
+        attr_name = "class" if key == "className" else key
+        if isinstance(value, bool):
+            if value:
+                attrs[attr_name] = attr_name
+            continue
+        attrs[attr_name] = str(value)
+    return attrs
+
+
+def _collect_attributes(node: Dict[str, Any]) -> Dict[str, str]:
+    """Gather attributes from props and top-level keys."""
+    attrs: Dict[str, str] = {}
+    if "id" in node and node["id"]:
+        attrs["id"] = str(node["id"])
+
+    props = node.get("props")
+    if isinstance(props, dict):
+        attrs.update(_normalize_attributes(props))
+
+    for key, value in node.items():
+        if key in {"type", "children", "styles", "text", "props", "id"}:
+            continue
+        if value is None:
+            continue
+        attrs.setdefault(key, str(value))
+
+    styles = node.get("styles")
+    style_str = _styles_to_inline(styles) if isinstance(styles, dict) else ""
+    if style_str:
+        attrs["style"] = style_str
+
+    return attrs
+
+
+def _attrs_to_string(attrs: Dict[str, str]) -> str:
+    if not attrs:
+        return ""
+    parts = []
+    for key, value in attrs.items():
+        escaped = html.escape(value, quote=True)
+        parts.append(f'{key}="{escaped}"')
+    return " " + " ".join(parts)
+
+
+SELF_CLOSING_TAGS = {"img", "input", "hr", "br", "meta", "link"}
+
+
+def _render_node(node: Dict[str, Any]) -> str:
+    """Recursively render a JSON node into HTML."""
+    if not isinstance(node, dict):
+        return ""
+
+    tag = (node.get("type") or "div").lower()
+    attrs = _attrs_to_string(_collect_attributes(node))
+    text = html.escape(str(node.get("text", "") or ""))
+
+    children_html = ""
+    children = node.get("children")
+    if isinstance(children, Iterable) and not isinstance(children, (str, bytes, dict)):
+        children_html = "".join(
+            _render_node(child) for child in children if isinstance(child, dict)
+        )
+    elif isinstance(children, dict):
+        children_html = _render_node(children)
+
+    if tag in SELF_CLOSING_TAGS and not children_html:
+        return f"<{tag}{attrs} />"
+
+    return f"<{tag}{attrs}>{text}{children_html}</{tag}>"
+
+
+BASE_CSS = """
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  background-color: #f5f7fb;
+  color: #1f2933;
+}
+* {
+  box-sizing: border-box;
+}
+a {
+  color: #2563eb;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th, td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  text-align: left;
+}
+button {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+"""
+
+
+def _render_structure_html(structure: Union[Dict[str, Any], Iterable[Any]]) -> str:
+    """Render the provided structure into a full HTML document."""
+    nodes: Iterable[Dict[str, Any]]
+    if isinstance(structure, dict):
+        if "layout" in structure and isinstance(structure["layout"], Iterable):
+            nodes = [
+                child for child in structure["layout"] if isinstance(child, dict)
+            ]
+        else:
+            nodes = [structure]
+    elif isinstance(structure, Iterable):
+        nodes = [node for node in structure if isinstance(node, dict)]
+    else:
+        return ""
+
+    body_html = "".join(_render_node(node) for node in nodes)
+    return (
+        "<!DOCTYPE html>"
+        "<html lang='en'>"
+        "<head>"
+        "<meta charset='UTF-8' />"
+        "<meta name='viewport' content='width=device-width, initial-scale=1.0' />"
+        "<title>Generated Interface</title>"
+        f"<style>{BASE_CSS}</style>"
+        "</head>"
+        f"<body>{body_html}</body>"
+        "</html>"
+    )
+
+
 @app.route("/")
 def home():
     return jsonify({"message": "AI Engine running", "ollama_url": OLLAMA_URL})
@@ -143,6 +302,14 @@ def process():
         generated = generated.strip()
 
     structure, code, raw_text = _parse_generated_payload(generated)
+
+    if structure is not None and (not code or not code.strip()):
+        try:
+            rendered = _render_structure_html(structure)
+        except Exception:
+            rendered = ""
+        if rendered:
+            code = rendered
 
     return jsonify(
         {
