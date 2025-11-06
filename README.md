@@ -82,7 +82,7 @@ OLLAMA_URL=http://host.docker.internal:11434
 
 # Frontend
 FRONTEND_PORT=8090
-VITE_API_URL=http://51.75.240.22:8010
+VITE_API_URL=http://<server-ip>:8010
 ```
 
 ---
@@ -152,18 +152,18 @@ docker ps --format "table {{.Names}}	{{.Ports}}	{{.Status}}"
 
 ### Server SSH Access
 ```bash
-ssh melek@51.75.240.22
+ssh <username>@<server-ip>
 cd /opt/webgenai/webgen-ai
 source .venv/bin/activate
 ```
 
 ### Backend Check
 ```bash
-curl http://51.75.240.22:8010
+curl http://<server-ip>:8010
 ```
 
 ### Frontend Access
-Open [http://51.75.240.22:8090](http://51.75.240.22:8090)
+Open [http://<server-ip>:8090](http://<server-ip>:8090)
 
 ---
 
@@ -180,5 +180,5 @@ Open [http://51.75.240.22:8090](http://51.75.240.22:8090)
 
 ## 💬 Credits
 
-Developed by **Melek & Team**  
+Developed by **Melek**  
 Powered by **Ollama + Mistral + FastAPI + Flask + React**
