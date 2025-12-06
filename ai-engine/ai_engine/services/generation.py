@@ -2,6 +2,9 @@ import json
 import re
 from typing import Any, Dict, Optional, Tuple
 
+from pydantic import ValidationError
+
+from ai_engine.schemas.pydantic import AIResponse
 from ai_engine.services.ai_client import call_ollama
 
 
@@ -28,7 +31,8 @@ PROMPT_TEMPLATE = (
 
 
 def build_prompt(description: str) -> str:
-    return PROMPT_TEMPLATE.format(description=description)
+    # Avoid str.format collisions with the many braces in the template.
+    return PROMPT_TEMPLATE.replace("{description}", description)
 
 
 def _strip_code_fences(text: str) -> str:
@@ -91,14 +95,23 @@ def generate_screen(description: str) -> Dict[str, Any]:
     generated = ai_payload.get('generated', '')
     structure, code, raw_text = _parse_generated_payload(generated)
 
-    if _is_valid_html(code):
+    if not _is_valid_html(code):
         return {
-            'structure': structure,
-            'code': code or '',
+            'error': 'Model failed to produce valid HTML.',
             'raw_response': raw_text,
         }
 
-    return {
-        'error': 'Model failed to produce valid HTML.',
-        'raw_response': raw_text,
-    }
+    try:
+        ai_response = AIResponse(
+            structure=structure,
+            code=code or '',
+            raw_response=raw_text,
+        )
+    except ValidationError as exc:
+        return {
+            'error': 'Invalid AI response schema.',
+            'details': exc.errors(),
+            'raw_response': raw_text,
+        }
+
+    return ai_response.dict()

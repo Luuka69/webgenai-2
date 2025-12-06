@@ -17,6 +17,12 @@ def create_screen_record():
     return jsonify(record), 201
 
 
+@screens_bp.route('/screens', methods=['GET'])
+def list_screens():
+    records = storage.list_generations()
+    return jsonify(records)
+
+
 @screens_bp.route('/screens/<screen_id>', methods=['GET'])
 def get_screen_record(screen_id: str):
     record = storage.get_generation(screen_id)

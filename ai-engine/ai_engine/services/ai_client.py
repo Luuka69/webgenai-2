@@ -14,9 +14,9 @@ def call_ollama(prompt: str, retries: int = 1) -> Dict[str, Any]:
         'stream': False,
         'format': 'json',
     }
-
+    
     for attempt in range(retries + 1):
-        response = requests.post(f{OLLAMA_URL}/api/generate, json=payload, timeout=600)
+        response = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, timeout=600)
         response.raise_for_status()
         data = response.json()
         generated = data.get('response', '')

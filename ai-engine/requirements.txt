@@ -1,3 +1,4 @@
 flask
 requests
 python-dotenv
+pydantic>=1.10,<2.0
