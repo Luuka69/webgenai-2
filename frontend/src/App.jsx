@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || window.location.origin;
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL?.trim() ||
+  "http://127.0.0.1:8011"; // dev fallback to backend API
 
 function App() {
   const [description, setDescription] = useState("");
@@ -9,6 +11,9 @@ function App() {
   const [error, setError] = useState("");
   const [html, setHtml] = useState("");
   const [structure, setStructure] = useState(null);
+  const [screenId, setScreenId] = useState("");
+  const [screens, setScreens] = useState([]);
+  const [isFetchingScreens, setIsFetchingScreens] = useState(false);
 
   const generateScreen = async () => {
     const trimmed = description.trim();
@@ -21,6 +26,7 @@ function App() {
     setError("");
     setHtml("");
     setStructure(null);
+    setScreenId("");
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/generate`, {
@@ -38,8 +44,11 @@ function App() {
         throw new Error(data.error);
       }
 
+       setScreenId(data.screenId || "");
       setStructure(data.structure ?? null);
       setHtml(data.code || data.html || "<p>No HTML returned.</p>");
+      // refresh list after a successful generation
+      fetchScreens();
     } catch (err) {
       console.error("Error generating screen:", err);
       const message = err instanceof Error ? err.message : "Unknown error occurred";
@@ -48,6 +57,48 @@ function App() {
       setLoading(false);
     }
   };
+
+  const fetchScreens = async () => {
+    setIsFetchingScreens(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/screens`);
+      if (!res.ok) throw new Error(`List failed: ${res.status}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setScreens(data);
+      } else if (data.error) {
+        setError(data.error);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to load screens.";
+      setError(message);
+    } finally {
+      setIsFetchingScreens(false);
+    }
+  };
+
+  const loadScreen = async (id) => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/screens/${id}`);
+      if (!res.ok) throw new Error(`Load failed: ${res.status}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setScreenId(data.id || id);
+      setStructure(data.structure ?? null);
+      setHtml(data.code || "<p>No HTML returned.</p>");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to load screen.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchScreens();
+  }, []);
 
   return (
     <div className="app-root">
@@ -89,6 +140,12 @@ function App() {
 
         {error && <p className="error">{error}</p>}
 
+        {screenId && (
+          <p className="info">
+            Saved as <strong>{screenId}</strong>
+          </p>
+        )}
+
         {structure && (
           <pre className="structure-preview">
             {JSON.stringify(structure, null, 2)}
@@ -103,16 +160,46 @@ function App() {
       </div>
 
       <div className="output-container">
-        {loading ? (
-          <div className="loading">Generating your page...</div>
-        ) : (
-          <iframe
-            title="Generated Page"
-            id="generated-frame"
-            srcDoc={html || "<p>No output yet.</p>"}
-            sandbox="allow-scripts allow-same-origin"
-          ></iframe>
-        )}
+        <div className="output-header">
+          <div>
+            <h2>Preview</h2>
+            <p className="muted">Renders the generated HTML (srcDoc) from the AI engine.</p>
+          </div>
+          <button onClick={fetchScreens} disabled={isFetchingScreens}>
+            {isFetchingScreens ? "Refreshing..." : "Refresh Screens"}
+          </button>
+        </div>
+
+        <div className="output-panels">
+          <div className="preview-panel">
+            {loading ? (
+              <div className="loading">Loading...</div>
+            ) : (
+              <iframe
+                title="Generated Page"
+                id="generated-frame"
+                srcDoc={html || "<p>No output yet.</p>"}
+                sandbox="allow-scripts allow-same-origin"
+              ></iframe>
+            )}
+          </div>
+          <div className="screens-panel">
+            <h3>Saved Screens</h3>
+            {screens.length === 0 ? (
+              <p className="muted">No screens yet. Generate one to see it here.</p>
+            ) : (
+              <ul className="screens-list">
+                {screens.map((screen) => (
+                  <li key={screen.id}>
+                    <button onClick={() => loadScreen(screen.id)}>
+                      {screen.id} {screen.prompt ? `- ${screen.prompt.slice(0, 32)}...` : ""}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
