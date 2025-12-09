@@ -24,9 +24,14 @@ class StorageService:
 
     def _load_index(self) -> Dict[str, Dict[str, Any]]:
         try:
-            return json.loads(INDEX_FILE.read_text(encoding="utf-8") or "{}")
+            data = json.loads(INDEX_FILE.read_text(encoding="utf-8") or "{}")
         except json.JSONDecodeError:
-            return {}
+            data = {}
+        for entry in data.values():
+            entry.setdefault("kind", "cached")
+            entry.setdefault("logical_key", None)
+        return data
+
 
     def _write_index(self, index: Dict[str, Dict[str, Any]]) -> None:
         INDEX_FILE.write_text(json.dumps(index), encoding="utf-8")
@@ -35,20 +40,36 @@ class StorageService:
         if not isinstance(payload, dict):
             raise ValueError("Payload must be a JSON object")
 
+        gen_id = payload.get("id") or str(uuid.uuid4())
+        kind = payload.get("kind") or "cached"
+        logical_key = payload.get("logical_key")
+
         record = {
-            "id": payload.get("id") or str(uuid.uuid4()),
+            "id": gen_id,
+            "kind": kind,
+            "logical_key": logical_key,
             "prompt": payload.get("prompt") or payload.get("description"),
             "structure": payload.get("structure"),
             "code": payload.get("code"),
+            "load_ihm": payload.get("load_ihm"),
+            "tab_ihm_wf": payload.get("tab_ihm_wf"),
+            "element_ihm_wf": payload.get("element_ihm_wf"),
+            "tab_detail_ihm_wf": payload.get("tab_detail_ihm_wf"),
             "data_schema": payload.get("data_schema"),
             "bindings": payload.get("bindings"),
             "relations": payload.get("relations"),
+            "id_client": payload.get("id_client"),
+            "id_wf": payload.get("id_wf"),
+            "id_tache": payload.get("id_tache"),
+            "id_ihm": payload.get("id_ihm"),
+            "nom_ihm": payload.get("nom_ihm"),
             "raw_response": payload.get("raw_response"),
             "status": payload.get("status", "draft"),
             "version": payload.get("version", 1),
             "created_at": payload.get("created_at") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "updated_at": payload.get("updated_at") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
+
 
         line = json.dumps(record) + "\n"
         with GEN_FILE.open("a", encoding="utf-8") as f:
@@ -57,7 +78,12 @@ class StorageService:
             length = len(line)
 
         index = self._load_index()
-        index[record["id"]] = {"offset": offset, "length": length}
+        index[record["id"]] = {
+            "offset": offset,
+            "length": length,
+            "kind": kind,
+            "logical_key": logical_key,
+        }
         self._write_index(index)
         return record
 
@@ -83,7 +109,14 @@ class StorageService:
             for line in f:
                 try:
                     rec = json.loads(line.strip())
+                    # backfill defaults for old records
+                    rec.setdefault("kind", "cached")
+                    rec.setdefault("logical_key", None)
                     results.append(rec)
                 except json.JSONDecodeError:
                     continue
         return results
+
+    def list_generations_by_kind(self, kind: str) -> List[Dict[str, Any]]:
+        kind = kind or "cached"
+        return [rec for rec in self.list_generations() if rec.get("kind", "cached") == kind]

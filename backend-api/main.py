@@ -75,12 +75,53 @@ async def list_screens():
         return {"error": "AI engine returned invalid JSON"}
 
 
+from fastapi import Request
+
+
 @app.get("/api/screens/{screen_id}")
-async def get_screen(screen_id: str):
+async def get_screen(screen_id: str, request: Request):
     timeout = httpx.Timeout(30.0, connect=10.0)
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
-            response = await client.get(f"{AI_ENGINE_URL}/screens/{screen_id}")
+            response = await client.get(f"{AI_ENGINE_URL}/screens/{screen_id}", params=request.query_params)
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            return {
+                "error": f"AI engine returned {exc.response.status_code}: {exc.response.text}"
+            }
+        except httpx.RequestError as exc:
+            return {"error": f"Backend could not reach AI engine: {exc}"}
+    try:
+        return response.json()
+    except ValueError:
+        return {"error": "AI engine returned invalid JSON"}
+
+
+@app.get("/api/workflows")
+async def list_workflows():
+    timeout = httpx.Timeout(30.0, connect=10.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            response = await client.get(f"{AI_ENGINE_URL}/workflows")
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            return {
+                "error": f"AI engine returned {exc.response.status_code}: {exc.response.text}"
+            }
+        except httpx.RequestError as exc:
+            return {"error": f"Backend could not reach AI engine: {exc}"}
+    try:
+        return response.json()
+    except ValueError:
+        return {"error": "AI engine returned invalid JSON"}
+
+
+@app.get("/api/workflows/{wf_id}/screens")
+async def list_workflow_screens(wf_id: str):
+    timeout = httpx.Timeout(30.0, connect=10.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            response = await client.get(f"{AI_ENGINE_URL}/workflows/{wf_id}/screens")
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             return {

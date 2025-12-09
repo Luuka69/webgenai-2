@@ -13,7 +13,18 @@ function App() {
   const [structure, setStructure] = useState(null);
   const [screenId, setScreenId] = useState("");
   const [screens, setScreens] = useState([]);
-  const [isFetchingScreens, setIsFetchingScreens] = useState(false);
+  const [workflows, setWorkflows] = useState([]);
+  const [workflowScreens, setWorkflowScreens] = useState([]);
+  const [selectedWorkflow, setSelectedWorkflow] = useState(null);
+  const [activeTab, setActiveTab] = useState("cached"); // "cached" | "workflows"
+  const [isFetchingList, setIsFetchingList] = useState(false);
+
+  const cachedScreens = screens.filter(
+    (s) => s.kind === "cached" || !s.kind
+  );
+  const workflowScreensCached = screens.filter(
+    (s) => s.kind === "workflow_screen"
+  );
 
   const generateScreen = async () => {
     const trimmed = description.trim();
@@ -59,7 +70,7 @@ function App() {
   };
 
   const fetchScreens = async () => {
-    setIsFetchingScreens(true);
+    setIsFetchingList(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/screens`);
       if (!res.ok) throw new Error(`List failed: ${res.status}`);
@@ -73,7 +84,49 @@ function App() {
       const message = err instanceof Error ? err.message : "Unable to load screens.";
       setError(message);
     } finally {
-      setIsFetchingScreens(false);
+      setIsFetchingList(false);
+    }
+  };
+
+  const fetchWorkflows = async () => {
+    setIsFetchingList(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/workflows`);
+      if (!res.ok) throw new Error(`List workflows failed: ${res.status}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setWorkflows(data);
+        setWorkflowScreens([]);
+        setSelectedWorkflow(null);
+      } else if (data.error) {
+        setError(data.error);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to load workflows.";
+      setError(message);
+    } finally {
+      setIsFetchingList(false);
+    }
+  };
+
+  const fetchWorkflowScreens = async (wf) => {
+    if (!wf?.id_wf) return;
+    setIsFetchingList(true);
+    setSelectedWorkflow(wf);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/workflows/${wf.id_wf}/screens`);
+      if (!res.ok) throw new Error(`List workflow screens failed: ${res.status}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setWorkflowScreens(data);
+      } else if (data.error) {
+        setError(data.error);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to load workflow screens.";
+      setError(message);
+    } finally {
+      setIsFetchingList(false);
     }
   };
 
@@ -93,6 +146,50 @@ function App() {
       setError(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWorkflowScreen = async (screen) => {
+    if (!screen?.id_ihm || !screen?.id_wf) return;
+    setLoading(true);
+    setError("");
+    const url = `${API_BASE_URL}/api/screens/${screen.id_ihm}?wf_id=${screen.id_wf}`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Load failed: ${res.status}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setScreenId(data.id || `${screen.id_wf}:${screen.id_ihm}`);
+      setStructure(data.structure ?? null);
+      setHtml(data.code || "<p>No HTML returned.</p>");
+      // refresh cached list so it appears in saved tab
+      fetchScreens();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to load screen.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    if (activeTab === "cached") {
+      fetchScreens();
+    } else {
+      if (selectedWorkflow) {
+        fetchWorkflowScreens(selectedWorkflow);
+      } else {
+        fetchWorkflows();
+      }
+    }
+  };
+
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    if (tab === "cached") {
+      fetchScreens();
+    } else {
+      fetchWorkflows();
     }
   };
 
@@ -165,8 +262,8 @@ function App() {
             <h2>Preview</h2>
             <p className="muted">Renders the generated HTML (srcDoc) from the AI engine.</p>
           </div>
-          <button onClick={fetchScreens} disabled={isFetchingScreens}>
-            {isFetchingScreens ? "Refreshing..." : "Refresh Screens"}
+          <button onClick={handleRefresh} disabled={isFetchingList}>
+            {isFetchingList ? "Refreshing..." : "Refresh Screens"}
           </button>
         </div>
 
@@ -184,19 +281,95 @@ function App() {
             )}
           </div>
           <div className="screens-panel">
-            <h3>Saved Screens</h3>
-            {screens.length === 0 ? (
-              <p className="muted">No screens yet. Generate one to see it here.</p>
+            <div className="tab-toggle">
+              <button
+                className={activeTab === "cached" ? "active" : ""}
+                onClick={() => switchTab("cached")}
+              >
+                Cached
+              </button>
+              <button
+                className={activeTab === "workflows" ? "active" : ""}
+                onClick={() => switchTab("workflows")}
+              >
+                Workflows
+              </button>
+            </div>
+
+            {activeTab === "cached" ? (
+              cachedScreens.length === 0 ? (
+                <p className="muted">No screens yet. Generate one to see it here.</p>
+              ) : (
+                <ul className="screens-list">
+                  {cachedScreens.map((screen) => (
+                    <li key={screen.id}>
+                      <button onClick={() => loadScreen(screen.id)}>
+                        {screen.id} {screen.prompt ? `- ${screen.prompt.slice(0, 32)}...` : ""}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )
             ) : (
-              <ul className="screens-list">
-                {screens.map((screen) => (
-                  <li key={screen.id}>
-                    <button onClick={() => loadScreen(screen.id)}>
-                      {screen.id} {screen.prompt ? `- ${screen.prompt.slice(0, 32)}...` : ""}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div className="workflow-browser">
+                <div className="workflow-list">
+                  <h4>Workflows</h4>
+                  {workflows.length === 0 ? (
+                    <p className="muted">No workflows loaded.</p>
+                  ) : (
+                    <ul className="screens-list">
+                      {workflows.map((wf) => (
+                        <li key={wf.id_wf}>
+                          <button onClick={() => fetchWorkflowScreens(wf)}>
+                            {wf.id_wf} {wf.name ? `- ${wf.name}` : ""}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="workflow-screens">
+                  <h4>
+                    {selectedWorkflow ? `Screens for ${selectedWorkflow.id_wf}` : "Select a workflow"}
+                  </h4>
+                  {selectedWorkflow && workflowScreens.length === 0 && (
+                    <p className="muted">No screens for this workflow.</p>
+                  )}
+                  {selectedWorkflow && workflowScreens.length > 0 && (
+                    <ul className="screens-list">
+                      {workflowScreens.map((screen) => (
+                        <li key={`${screen.id_wf}:${screen.id_ihm}`}>
+                          <button onClick={() => loadWorkflowScreen(screen)}>
+                            {screen.id_ihm} {screen.name ? `- ${screen.name}` : ""}{" "}
+                            {screen.task_name ? `(${screen.task_name})` : ""}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {!selectedWorkflow && workflowScreensCached.length > 0 && (
+                    <div>
+                      <h4>Workflow screens (cached)</h4>
+                      <ul className="screens-list">
+                        {workflowScreensCached.map((screen) => {
+                          const label = `${screen.id_wf || ""}:${screen.id_tache || ""}:${screen.id_ihm || ""}`.replace(/:+$/,"");
+                          const title =
+                            screen.nom_ihm ||
+                            screen.title ||
+                            (screen.prompt ? screen.prompt.slice(0, 40) : "");
+                          return (
+                            <li key={screen.id}>
+                              <button onClick={() => loadScreen(screen.id)}>
+                                {label} {title ? `- ${title}` : ""}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>
