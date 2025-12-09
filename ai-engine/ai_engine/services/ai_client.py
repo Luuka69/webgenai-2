@@ -4,7 +4,7 @@ from typing import Any, Dict
 import requests
 
 OLLAMA_URL = os.getenv('OLLAMA_URL', 'http://127.0.0.1:11434')
-OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'mistral')
+OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'Mistral')
 
 
 def call_ollama(prompt: str, retries: int = 1) -> Dict[str, Any]:
