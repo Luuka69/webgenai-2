@@ -18,6 +18,7 @@ function App() {
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [activeTab, setActiveTab] = useState("cached"); // "cached" | "workflows"
   const [isFetchingList, setIsFetchingList] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
 
   const cachedScreens = screens.filter(
     (s) => s.kind === "cached" || !s.kind
@@ -55,9 +56,22 @@ function App() {
         throw new Error(data.error);
       }
 
-       setScreenId(data.screenId || "");
+      const newScreen = {
+        id: data.id || data.screenId || "",
+        kind: data.kind || "cached",
+        logical_key: data.logical_key || null,
+        prompt: description,
+        id_client: data.id_client,
+        id_wf: data.id_wf,
+        id_tache: data.id_tache,
+        id_ihm: data.id_ihm,
+        title: data.screen_schema?.title || data.structure?.title || null,
+      };
+
+      setScreenId(newScreen.id);
       setStructure(data.structure ?? null);
       setHtml(data.code || data.html || "<p>No HTML returned.</p>");
+      setScreens((prev) => [...prev, newScreen]);
       // refresh list after a successful generation
       fetchScreens();
     } catch (err) {
@@ -198,7 +212,8 @@ function App() {
   }, []);
 
   return (
-    <div className="app-root">
+    <div className={`app-root ${showSidebar ? "" : "sidebar-hidden"}`}>
+      {showSidebar && (
       <div className="sidebar">
         <div className="header">
           <svg
@@ -255,6 +270,7 @@ function App() {
           </p>
         </footer>
       </div>
+      )}
 
       <div className="output-container">
         <div className="output-header">
@@ -262,9 +278,14 @@ function App() {
             <h2>Preview</h2>
             <p className="muted">Renders the generated HTML (srcDoc) from the AI engine.</p>
           </div>
-          <button onClick={handleRefresh} disabled={isFetchingList}>
-            {isFetchingList ? "Refreshing..." : "Refresh Screens"}
-          </button>
+          <div className="output-actions">
+            <button onClick={() => setShowSidebar((prev) => !prev)}>
+              {showSidebar ? "Hide Sidebar" : "Show Sidebar"}
+            </button>
+            <button onClick={handleRefresh} disabled={isFetchingList}>
+              {isFetchingList ? "Refreshing..." : "Refresh Screens"}
+            </button>
+          </div>
         </div>
 
         <div className="output-panels">

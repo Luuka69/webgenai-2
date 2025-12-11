@@ -4,8 +4,9 @@ from ai_engine.services.generation import generate_screen
 from ai_engine.services.storage import StorageService
 from ai_engine.services.workflow_index import WorkflowIndex
 from ai_engine.services.schema_generator import extract_schema
+import logging
 
-
+logger = logging.getLogger(__name__)
 screens_bp = Blueprint('screens', __name__)
 storage = StorageService()
 workflow_index = WorkflowIndex()
@@ -84,12 +85,48 @@ def get_screen_record(screen_id: str):
         "ID_IHM": screen_id,
     }
     schema_result = extract_schema(screen_meta.get("description", ""), screen_schema, context_ids)
+    
+    load_ihm = None
+    tab_ihm_wf = []
+    element_ihm_wf = []
+    tab_detail_ihm_wf = []
+    nom_ihm = screen_meta.get("name")
+    html_from_schema = None
+
+    if schema_result:
+        load_ihm = schema_result.ihm.load_ihm if getattr(schema_result, "ihm", None) else None
+        tab_ihm_wf = schema_result.tab_ihm_wf or []
+        element_ihm_wf = schema_result.element_ihm_wf or []
+        tab_detail_ihm_wf = schema_result.tab_detail_ihm_wf or []
+        # derive name/title from payload if present
+        if getattr(schema_result, "ihm", None) and getattr(schema_result.ihm, "nom_ihm", None):
+            nom_ihm = schema_result.ihm.nom_ihm
+        # try to get HTML from LOAD_IHM
+        if load_ihm and isinstance(load_ihm, dict):
+            html_from_schema = (load_ihm.get("LOAD_IHM") or {}).get("html")
+
+
+    if screen_meta.get("id_client") and (screen_meta.get("id_wf") or wf_id) and screen_meta.get("id_tache") and screen_id:
+        kind = "workflow_screen"
+        logical_key = f"{screen_meta.get('id_client')}:{screen_meta.get('id_wf') or wf_id}:{screen_meta.get('id_tache')}:{screen_id}"
+    else:
+        kind = "cached"
+        logical_key = None
+
+    if kind == "workflow_screen":
+        logger.info(
+            f"Lazy save workflow_screen: logical_key={logical_key}, "
+            f"id_wf={screen_meta.get('id_wf') or wf_id}, id_ihm={screen_id}"
+        )
 
     record = storage.store_generation({
         "id": namespaced_id,
+        "kind": kind,
+        "logical_key": logical_key,
         "prompt": screen_meta.get("description"),
         "structure": screen_schema,
-        "code": gen_result.get("code") or gen_result.get("html"),
+        # prefer HTML from Oracle payload; fallback to first LLM code
+        "code": html_from_schema or gen_result.get("code") or gen_result.get("html"),
         "raw_response": gen_result.get("raw_response"),
         "status": "draft",
         "version": 1,
@@ -97,12 +134,13 @@ def get_screen_record(screen_id: str):
         "id_wf": screen_meta.get("id_wf") or wf_id,
         "id_tache": screen_meta.get("id_tache"),
         "id_ihm": screen_id,
-        "nom_ihm": screen_meta.get("name"),
-        "load_ihm": schema_result.get("ihm"),
-        "tab_ihm_wf": schema_result.get("tab_ihm_wf"),
-        "element_ihm_wf": schema_result.get("element_ihm_wf"),
-        "tab_detail_ihm_wf": schema_result.get("tab_detail_ihm_wf"),
+        "nom_ihm": nom_ihm,
+        "load_ihm": load_ihm,
+        "tab_ihm_wf": tab_ihm_wf,
+        "element_ihm_wf": element_ihm_wf,
+        "tab_detail_ihm_wf": tab_detail_ihm_wf,
     })
+
     return jsonify(record)
 
 @screens_bp.route('/workflows', methods=['GET'])
