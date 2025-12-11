@@ -41,27 +41,33 @@ class StorageService:
             raise ValueError("Payload must be a JSON object")
 
         gen_id = payload.get("id") or str(uuid.uuid4())
-        kind = payload.get("kind") or "cached"
+        id_client = payload.get("id_client")
+        id_wf = payload.get("id_wf")
+        id_tache = payload.get("id_tache")
+        id_ihm = payload.get("id_ihm")
+
+        kind = payload.get("kind")
         logical_key = payload.get("logical_key")
+        if not kind and id_client and id_wf and id_tache and id_ihm:
+            kind = "workflow_screen"
+            logical_key = f"{id_client}:{id_wf}:{id_tache}:{id_ihm}"
+        if not kind:
+            kind = "cached"
 
         record = {
             "id": gen_id,
             "kind": kind,
             "logical_key": logical_key,
             "prompt": payload.get("prompt") or payload.get("description"),
-            "structure": payload.get("structure"),
             "code": payload.get("code"),
             "load_ihm": payload.get("load_ihm"),
             "tab_ihm_wf": payload.get("tab_ihm_wf"),
             "element_ihm_wf": payload.get("element_ihm_wf"),
             "tab_detail_ihm_wf": payload.get("tab_detail_ihm_wf"),
-            "data_schema": payload.get("data_schema"),
-            "bindings": payload.get("bindings"),
-            "relations": payload.get("relations"),
-            "id_client": payload.get("id_client"),
-            "id_wf": payload.get("id_wf"),
-            "id_tache": payload.get("id_tache"),
-            "id_ihm": payload.get("id_ihm"),
+            "id_client": id_client,
+            "id_wf": id_wf,
+            "id_tache": id_tache,
+            "id_ihm": id_ihm,
             "nom_ihm": payload.get("nom_ihm"),
             "raw_response": payload.get("raw_response"),
             "status": payload.get("status", "draft"),
@@ -92,7 +98,10 @@ class StorageService:
             f.seek(offset)
             chunk = f.read(length)
             try:
-                return json.loads(chunk.strip())
+                rec = json.loads(chunk.strip())
+                rec.setdefault("kind", "cached")
+                rec.setdefault("logical_key", None)
+                return rec
             except json.JSONDecodeError:
                 return None
 

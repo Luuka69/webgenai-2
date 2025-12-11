@@ -1,6 +1,9 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import json
+import logging
 from ai_engine.services.ai_client import call_ollama
+from ai_engine.schemas.pydantic.oracle_payload import WorkflowScreenPayload
+
 
 SCHEMA_PROMPT = """You are WebGen AI. Given a natural language screen prompt, screen_schema, and context IDs, output JSON matching Oracle metadata tables.
 Inputs:
@@ -88,19 +91,22 @@ def build_schema_prompt(prompt: str, screen_schema: Dict[str, Any], context: Dic
         .replace("{context}", json.dumps(context))
     )
 
-def extract_schema(prompt: str, screen_schema: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+def extract_schema(prompt: str, screen_schema: Dict[str, Any], context: Dict[str, Any]) -> Optional[WorkflowScreenPayload]:
     p = build_schema_prompt(prompt, screen_schema, context)
     resp = call_ollama(p)  # adjust for your model
     raw = resp.get("generated") or resp.get("response") or ""
     try:
-        parsed = json.loads(raw) if isinstance(raw, str) else raw
-        if not isinstance(parsed, dict):
-            raise ValueError
-        return parsed
+        data = json.loads(raw) if isinstance(raw, str) else raw
+        ihm = data.get("ihm", {})
+        if isinstance(ihm, dict):
+            ihm.setdefault("ID_CLIENT", context.get("id_client"))
+            ihm.setdefault("ID_WF", context.get("id_wf"))
+            ihm.setdefault("ID_TACHE", context.get("id_tache"))
+            ihm.setdefault("ID_IHM", context.get("id_ihm"))
+            data["ihm"] = ihm
+        return WorkflowScreenPayload(**data)
     except Exception:
-        return {
-            "ihm": {},
-            "tab_ihm_wf": [],
-            "element_ihm_wf": [],
-            "tab_detail_ihm_wf": [],
-        }
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to parse WorkflowScreenPayload; raw={raw}")
+        return None
+

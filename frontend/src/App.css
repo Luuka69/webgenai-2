@@ -20,6 +20,10 @@ html, body, #root {
   width: 100vw;
 }
 
+.app-root.sidebar-hidden .output-container {
+  width: 100%;
+}
+
 /* Sidebar with controls */
 .sidebar {
   flex: 0 0 400px;
@@ -129,6 +133,11 @@ footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.output-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .output-header h2 {

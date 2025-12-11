@@ -8,6 +8,7 @@ from ai_engine.schemas.pydantic.oracle_metadata import (
     TacheWf,
     Wf,
 )
+from ai_engine.schemas.pydantic.oracle_payload import WorkflowScreenPayload
 from ai_engine.schemas.pydantic.relations import ScreenRelation
 from ai_engine.schemas.pydantic.screen import Component, ScreenSchema
 
@@ -27,4 +28,5 @@ __all__ = [
     "TabIhmWf",
     "TabDetailIhmWf",
     "ElementIhmWf",
+    "WorkflowScreenPayload",
 ]
