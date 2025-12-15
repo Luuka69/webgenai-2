@@ -12,6 +12,8 @@ function App() {
   const [html, setHtml] = useState("");
   const [structure, setStructure] = useState(null);
   const [screenId, setScreenId] = useState("");
+  const [currentScreenMeta, setCurrentScreenMeta] = useState(null);
+  const [generateForWorkflow, setGenerateForWorkflow] = useState(false);
   const [screens, setScreens] = useState([]);
   const [workflows, setWorkflows] = useState([]);
   const [workflowScreens, setWorkflowScreens] = useState([]);
@@ -41,10 +43,25 @@ function App() {
     setScreenId("");
 
     try {
+      const body = { description: trimmed };
+      if (
+        generateForWorkflow &&
+        currentScreenMeta?.id_client &&
+        currentScreenMeta?.id_wf &&
+        currentScreenMeta?.id_tache &&
+        currentScreenMeta?.id_ihm
+      ) {
+        body.id_client = currentScreenMeta.id_client;
+        body.id_wf = currentScreenMeta.id_wf;
+        body.id_tache = currentScreenMeta.id_tache;
+        body.id_ihm = currentScreenMeta.id_ihm;
+        if (currentScreenMeta.nom_ihm) body.nom_ihm = currentScreenMeta.nom_ihm;
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: trimmed }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -65,13 +82,29 @@ function App() {
         id_wf: data.id_wf,
         id_tache: data.id_tache,
         id_ihm: data.id_ihm,
+        nom_ihm: data.nom_ihm,
         title: data.screen_schema?.title || data.structure?.title || null,
       };
 
       setScreenId(newScreen.id);
-      setStructure(data.structure ?? null);
+      setStructure(data.screen_schema ?? data.structure ?? null);
       setHtml(data.code || data.html || "<p>No HTML returned.</p>");
-      setScreens((prev) => [...prev, newScreen]);
+      setCurrentScreenMeta({
+        id_client: newScreen.id_client,
+        id_wf: newScreen.id_wf,
+        id_tache: newScreen.id_tache,
+        id_ihm: newScreen.id_ihm,
+        nom_ihm: newScreen.nom_ihm || null,
+        kind: newScreen.kind,
+      });
+      setGenerateForWorkflow(Boolean(newScreen.id_client && newScreen.id_wf && newScreen.id_tache && newScreen.id_ihm));
+      setScreens((prev) => {
+        const idx = prev.findIndex((s) => s.id === newScreen.id);
+        if (idx === -1) return [...prev, newScreen];
+        const next = [...prev];
+        next[idx] = { ...next[idx], ...newScreen };
+        return next;
+      });
       // refresh list after a successful generation
       fetchScreens();
     } catch (err) {
@@ -155,6 +188,16 @@ function App() {
       setScreenId(data.id || id);
       setStructure(data.structure ?? null);
       setHtml(data.code || "<p>No HTML returned.</p>");
+      if (data.prompt) setDescription(data.prompt);
+      setCurrentScreenMeta({
+        id_client: data.id_client,
+        id_wf: data.id_wf,
+        id_tache: data.id_tache,
+        id_ihm: data.id_ihm,
+        nom_ihm: data.nom_ihm || null,
+        kind: data.kind || null,
+      });
+      setGenerateForWorkflow(Boolean(data.id_client && data.id_wf && data.id_tache && data.id_ihm));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to load screen.";
       setError(message);
@@ -167,6 +210,7 @@ function App() {
     if (!screen?.id_ihm || !screen?.id_wf) return;
     setLoading(true);
     setError("");
+    if (screen.description) setDescription(screen.description);
     const url = `${API_BASE_URL}/api/screens/${screen.id_ihm}?wf_id=${screen.id_wf}`;
     try {
       const res = await fetch(url);
@@ -176,6 +220,15 @@ function App() {
       setScreenId(data.id || `${screen.id_wf}:${screen.id_ihm}`);
       setStructure(data.structure ?? null);
       setHtml(data.code || "<p>No HTML returned.</p>");
+      setCurrentScreenMeta({
+        id_client: data.id_client ?? screen.id_client,
+        id_wf: data.id_wf ?? screen.id_wf,
+        id_tache: data.id_tache ?? screen.id_tache,
+        id_ihm: data.id_ihm ?? screen.id_ihm,
+        nom_ihm: data.nom_ihm || screen.name || null,
+        kind: data.kind || "workflow_screen",
+      });
+      setGenerateForWorkflow(true);
       // refresh cached list so it appears in saved tab
       fetchScreens();
     } catch (err) {
@@ -249,6 +302,20 @@ function App() {
         <button onClick={generateScreen} disabled={loading}>
           {loading ? "Generating..." : "Generate Screen"}
         </button>
+
+        {currentScreenMeta?.id_client &&
+          currentScreenMeta?.id_wf &&
+          currentScreenMeta?.id_tache &&
+          currentScreenMeta?.id_ihm && (
+            <label className="workflow-generate-toggle">
+              <input
+                type="checkbox"
+                checked={generateForWorkflow}
+                onChange={(e) => setGenerateForWorkflow(e.target.checked)}
+              />
+              Update workflow screen ({currentScreenMeta.id_wf}:{currentScreenMeta.id_ihm})
+            </label>
+          )}
 
         {error && <p className="error">{error}</p>}
 
