@@ -1,180 +1,140 @@
 # 🧠 WebGen AI
 
-**WebGen AI** is a full-stack, containerized AI platform that generates **complete web pages** from plain text descriptions using **Ollama + Mistral**.
+**WebGen AI** is a full‑stack platform that generates **complete HTML/CSS screens** from a natural language description.
+It uses an **Ollama-hosted LLM** (Mistral by default) and provides a **live preview** UI.
 
-Simply describe a web interface (e.g. *“A login page with username and password fields, and a login button”*), and the system generates a complete responsive HTML/CSS page with a live preview.
-
----
-
-## 🚀 Features
-
-✅ Generate HTML/CSS layouts from plain text  
-✅ Interactive React-based frontend with live iframe preview  
-✅ FastAPI backend to route AI requests  
-✅ Flask-based AI Engine for AI processing  
-✅ Mistral model via Ollama for smart web generation  
-✅ Fully containerized architecture (Docker + Compose)  
-✅ Easily deployable on any Linux or cloud server  
+It also supports **workflow screens**: when workflow identifiers are provided (`id_client`, `id_wf`, `id_tache`, `id_ihm`),
+the AI engine enriches the result with **Oracle-friendly metadata payloads**
+(`tab_ihm_wf`, `element_ihm_wf`, `tab_detail_ihm_wf`) and persists generations in `ai-engine/.data/`.
 
 ---
 
-## 🧩 Architecture
+## 🧩 What’s Inside (Components)
 
-```
-Frontend (React + Nginx, port 8090)
-   │
-   ▼
-Backend API (FastAPI, port 8010)
-   │
-   ▼
-AI Engine (Flask, port 5005)
-   │
-   ▼
-Ollama (Mistral model, host port 11434)
-```
+- **`frontend/`**: React UI (prompt input + iframe preview) and a browser for cached screens & workflows.
+- **`backend-api/`**: FastAPI gateway used by the frontend; proxies requests to the AI engine and exposes a stable REST API.
+- **`ai-engine/`**: Flask AI engine; calls Ollama to generate HTML, extracts screen/schema data, hydrates Oracle metadata, and stores artifacts.
+- **`ollama`** (service): model runtime exposing `:11434` (pulled model is persisted in a Docker volume).
 
 ---
 
-## ⚙️ Ports Configuration
+## 🧠 Data & Storage (`ai-engine/.data/`)
 
-| Service | Host Port | Container Port | Description |
-|----------|------------|----------------|-------------|
-| Frontend | **8090** | 80 | React UI served by Nginx |
-| Backend API | **8010** | 8000 | FastAPI REST service |
-| AI Engine | **5005** | 5005 | Flask service linked to Ollama |
-| Ollama | **11434** | 11434 | Model endpoint |
+- **`ai-engine/.data/workflows.json`**: input catalog of workflows/tasks/screens shown in the UI “Workflows” tab.
+- **`ai-engine/.data/generations.jsonl`**: append-only JSONL file containing generated screens (HTML + metadata).
+- **`ai-engine/.data/index.json`**: offsets index used for quick lookups in the JSONL file.
 
 ---
 
-## 📁 Project Structure
+## 🚀 Launch (Docker Compose)
 
-```
-webgen-ai/
-├── backend-api/
-│   ├── main.py
-│   └── requirements.txt
-├── ai-engine/
-│   ├── main.py
-│   └── requirements.txt
-├── frontend/
-│   ├── src/App.jsx
-│   ├── src/App.css
-│   └── nginx.conf
-├── docker-compose.yml
-├── .env
-└── README.md
-```
+### 1) (Recommended) Configure the frontend API base (build-time)
 
----
-
-## 🧾 Environment Configuration (`.env`)
+The frontend can call the backend through the Nginx reverse-proxy (`/api/*`). To enable that, create `frontend/.env`:
 
 ```env
-# Backend
-BACKEND_HOST=0.0.0.0
-BACKEND_PORT=8010
-AI_ENGINE_URL=http://webgen-ai-ai-engine:5005
+VITE_API_URL=.
+```
 
-# AI Engine
-AI_ENGINE_HOST=0.0.0.0
-AI_ENGINE_PORT=5005
-OLLAMA_URL=http://host.docker.internal:11434
+### 2) Start the stack
 
-# Frontend
-FRONTEND_PORT=8090
-VITE_API_URL=http://<server-ip>:8010
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+### 3) Pull the model (first run only)
+
+```bash
+docker exec -it webgen-ai-ollama ollama pull mistral
+```
+
+### 4) Open the UI
+
+- Frontend: `http://localhost:8090`
+
+---
+
+## ⚙️ Ports (Docker Compose)
+
+Ports are defined in `docker-compose.yml` (edit that file if you need different host ports).
+
+| Service | Host Port | Container Port | What it is |
+|---|---:|---:|---|
+| Frontend | **8090** | 80 | React UI (served by Nginx) |
+| Backend API | **8100** | 8000 | FastAPI REST API (Swagger: `/docs`) |
+| AI Engine | **8505** | 5005 | Flask AI service |
+| Ollama | **11434** | 11434 | Model endpoint |
+
+Quick checks:
+
+```bash
+curl http://localhost:8100/
+curl http://localhost:8505/
+curl http://localhost:11434/api/tags
 ```
 
 ---
 
-## 🐳 Docker Setup (`docker-compose.yml`)
+## 🔌 API Endpoints (Backend)
 
-```yaml
-version: '3.8'
+The frontend talks to the **Backend API** (FastAPI):
 
-services:
-  backend-api:
-    build: ./backend-api
-    container_name: webgen-ai-backend-api
-    ports:
-      - "8010:8000"
-    environment:
-      - AI_ENGINE_URL=http://webgen-ai-ai-engine:5005
-    depends_on:
-      - ai-engine
-    networks:
-      - webnet
+- `POST /api/generate` — generate a screen from a description (optionally with workflow IDs)
+- `GET /api/screens` — list cached generations
+- `GET /api/screens/{screen_id}` — fetch a saved generation (supports `?wf_id=...` for workflow screens)
+- `GET /api/workflows` — list workflows from `ai-engine/.data/workflows.json`
+- `GET /api/workflows/{wf_id}/screens` — list screens for a workflow
 
-  ai-engine:
-    build: ./ai-engine
-    container_name: webgen-ai-ai-engine
-    ports:
-      - "5005:5005"
-    environment:
-      - OLLAMA_URL=http://host.docker.internal:11434
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks:
-      - webnet
+Example:
 
-  frontend:
-    build: ./frontend
-    container_name: webgen-ai-frontend
-    ports:
-      - "8090:80"
-    depends_on:
-      - backend-api
-    networks:
-      - webnet
-
-networks:
-  webnet:
-    driver: bridge
+```bash
+curl -X POST http://localhost:8100/api/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"description":"A login page with email/password inputs and a primary blue button (#2563eb)."}'
 ```
 
 ---
 
-## 🧪 Testing Commands
+## 🧑‍💻 Local Development (No Docker)
 
-### Ollama Test
+Prereqs: **Python 3.11+**, **Node 22+**, and **Ollama** running locally.
+
+### 1) Ollama
+
 ```bash
-curl http://127.0.0.1:11434/api/tags
+ollama serve
+ollama pull mistral
 ```
 
-### Docker Lifecycle
+### 2) AI Engine (Flask, default `:5005`)
+
 ```bash
-docker compose build --no-cache
-docker compose up -d
-docker compose down -v
-docker compose logs -f
-docker ps --format "table {{.Names}}	{{.Ports}}	{{.Status}}"
+cd ai-engine
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+export OLLAMA_URL=http://127.0.0.1:11434
+export AI_ENGINE_STORAGE_DIR="$(pwd)/.data"
+python main.py
 ```
 
-### Server SSH Access
+### 3) Backend API (FastAPI, default `:8011`)
+
 ```bash
-ssh <username>@<server-ip>
-cd /opt/webgenai/webgen-ai
-source .venv/bin/activate
+cd backend-api
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+export AI_ENGINE_URL=http://127.0.0.1:5005
+python main.py
 ```
 
-### Backend Check
+### 4) Frontend (Vite dev server, default `:5173`)
+
 ```bash
-curl http://<server-ip>:8010
+cd frontend
+npm install
+npm run dev
 ```
-
-### Frontend Access
-Open [http://<server-ip>:8090](http://<server-ip>:8090)
-
----
-
-## ✅ Current Status
-
-| Component | Status | Port |
-|------------|----------|------|
-| Frontend | 🟢 Running | 8090 |
-| Backend API | 🟢 Running | 8010 |
-| AI Engine | 🟢 Running | 5005 |
-| Ollama | 🟢 Active | 11434 |
 
 ---
 
