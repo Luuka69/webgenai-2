@@ -1,0 +1,137 @@
+{
+  "workflows": [
+    {
+      "id_client": 1,
+      "id_wf": "WF_CONTRAT",
+      "name": "Gestion de Contrat",
+      "tasks": [
+        {
+          "id_tache": "CREATE_Contrat",
+          "name": "Créer un Contrat",
+          "screens": [
+            {
+              "id_ihm": "Contrat_FORM",
+              "name": "Créer un Contrat",
+              "description": "Responsive Contrat form with name, email, phone, company, job title, tags, notes; submit and cancel; two-column desktop, single-column mobile; modern card with #2563eb primary."
+            }
+          ]
+        },
+        {
+          "id_tache": "VIEW_ContratS",
+          "name": "Liste des Contrats",
+          "screens": [
+            {
+              "id_ihm": "Contrat_LIST",
+              "name": "Liste des Contrats",
+              "description": "Table of Contrats with search, filters, status chips, add-Contrat button, pagination; responsive layout; primary #2563eb for actions."
+            }
+          ]
+        },
+        {
+          "id_tache": "Contrat_DETAILS",
+          "name": "Détails Contrat",
+          "screens": [
+            {
+              "id_ihm": "Contrat_DETAILS",
+              "name": "Détails du Contrat",
+              "description": "Read-only Contrat info with tags, recent activities/timeline, edit and back buttons; responsive card layout; primary #2563eb for actions."
+            }
+          ]
+        },
+        {
+          "id_tache": "CREATE_BL",
+          "name": "Créer bon de livraison",
+          "screens": [
+            {
+              "id_ihm": "BL_FORM",
+              "name": "Créer bon de livraison",
+              "description": "BL creation form: client selector, Contrat selector, delivery date, address, line items (product, qty, unit price), notes; actions: save draft, validate, cancel; two-column header and responsive line-items table; primary #2563eb."
+            }
+          ]
+        },
+        {
+          "id_tache": "CREATE_FACTURE",
+          "name": "Créer facture",
+          "screens": [
+            {
+              "id_ihm": "FACTURE_FORM",
+              "name": "Créer facture",
+              "description": "Invoice creation form: client selector, Contrat selector, invoice date, due date, payment terms, line items (product/service, qty, unit price, tax), totals sidebar (subtotal, tax, total), notes; actions: save draft, issue invoice, cancel; responsive layout with summary sidebar on desktop; primary #2563eb."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id_client": 1,
+      "id_wf": "WF_ACHAT",
+      "name": "Gestion des achats",
+      "tasks": [
+        {
+          "id_tache": "FOURNISSEURS",
+          "name": "Gestion des fournisseurs",
+          "screens": [
+            {
+              "id_ihm": "SUPPLIER_LIST",
+              "name": "Liste des fournisseurs",
+              "description": "Tableau des fournisseurs avec recherche, filtres par statut (Actif/Inactif), badges de statut, bouton 'Ajouter un fournisseur', pagination; mise en page responsive; couleur primaire #2563eb."
+            },
+            {
+              "id_ihm": "SUPPLIER_FORM",
+              "name": "Fiche fournisseur",
+              "description": "Formulaire fournisseur avec: raison sociale, contact principal, email, téléphone, adresse, pays, conditions de paiement, IBAN, notes; boutons Enregistrer et Annuler; mise en page 2 colonnes sur desktop, 1 colonne sur mobile; carte moderne avec bordures douces et couleur primaire #2563eb."
+            }
+          ]
+        },
+        {
+          "id_tache": "BC",
+          "name": "Bons de commande",
+          "screens": [
+            {
+              "id_ihm": "PO_LIST",
+              "name": "Liste des bons de commande",
+              "description": "Tableau des bons de commande avec colonnes: N° BC, fournisseur, date, montant TTC, statut (Brouillon, Envoyé, Réception partielle, Clos); recherche plein texte, filtres par date et statut, badge de statut, bouton 'Nouveau bon de commande', pagination; layout responsive; thème #2563eb pour les actions."
+            },
+            {
+              "id_ihm": "PO_FORM",
+              "name": "Bon de commande",
+              "description": "Formulaire de bon de commande: en-tête (fournisseur, date, devise, conditions de paiement), section lignes (tableau avec article, description, quantité, prix unitaire, taux de TVA, montant), section totaux (Sous-total HT, TVA, Total TTC), champ notes; actions: Enregistrer brouillon, Valider, Annuler; en-tête en 2 colonnes sur desktop et tableau de lignes responsive; couleur primaire #2563eb."
+            }
+          ]
+        },
+        {
+          "id_tache": "RECEPTION",
+          "name": "Réception des marchandises",
+          "screens": [
+            {
+              "id_ihm": "RECEIPT_LIST",
+              "name": "Liste des réceptions",
+              "description": "Tableau des réceptions avec colonnes: N° BC, N° BL, fournisseur, date de réception, statut (En attente, Partielle, Complète); champs de recherche et filtres par statut et date; bouton 'Nouvelle réception'; pagination; design simple et lisible."
+            },
+            {
+              "id_ihm": "RECEIPT_FORM",
+              "name": "Réception",
+              "description": "Écran de réception: sélection du bon de commande, date de réception, entrepôt, tableau des lignes du BC avec quantités commandées / déjà reçues / à recevoir, possibilité d’ajuster les quantités; section notes; actions: Enregistrer, Valider la réception, Annuler; mise en page orientée tableau, responsive, avec #2563eb pour les boutons principaux."
+            }
+          ]
+        },
+        {
+          "id_tache": "FACTURE_FOURNISSEUR",
+          "name": "Factures fournisseurs",
+          "screens": [
+            {
+              "id_ihm": "INV_LIST",
+              "name": "Liste des factures fournisseurs",
+              "description": "Tableau des factures fournisseurs avec colonnes: N° facture, fournisseur, date, date d’échéance, montant TTC, statut (Non validée, Validée, Payée, En retard); filtres par fournisseur, date et statut; recherche; bouton 'Nouvelle facture'; pagination; badges de statut colorés; couleur primaire #2563eb pour les actions."
+            },
+            {
+              "id_ihm": "INV_FORM",
+              "name": "Facture fournisseur",
+              "description": "Formulaire de facture fournisseur: en-tête (fournisseur, N° facture fournisseur, date, date d’échéance, devise, conditions de paiement), association optionnelle à un ou plusieurs bons de commande/réceptions, lignes (article/service, description, quantité, prix unitaire, TVA), totaux (HT, TVA, TTC), notes; actions: Enregistrer brouillon, Valider facture, Annuler; layout avec colonne de résumé des totaux à droite sur desktop; thème #2563eb."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, List
 
 from pydantic import BaseModel, Field
 
@@ -52,10 +52,10 @@ class IhmWf(BaseModel):
 
 
 class TabIhmWf(BaseModel):
-    id_client: int = Field(..., alias="ID_CLIENT")
-    id_wf: str = Field(..., alias="ID_WF")
-    id_tache: str = Field(..., alias="ID_TACHE")
-    id_ihm: str = Field(..., alias="ID_IHM")
+    id_client: Optional[int] = Field(None, alias="ID_CLIENT")
+    id_wf: Optional[str] = Field(None, alias="ID_WF")
+    id_tache: Optional[str] = Field(None, alias="ID_TACHE")
+    id_ihm: Optional[str] = Field(None, alias="ID_IHM")
     id_tab: str = Field(..., alias="ID_TAB")
     type_tab: str = Field("M", alias="TYPE_TAB", description="'M' master / 'D' detail")
     id_tab_maitre: Optional[str] = Field(None, alias="ID_TAB_MAITRE", description="Master table id when this is a detail table")
@@ -70,10 +70,10 @@ class TabIhmWf(BaseModel):
 
 
 class TabDetailIhmWf(BaseModel):
-    id_client: int = Field(..., alias="ID_CLIENT")
-    id_wf: str = Field(..., alias="ID_WF")
-    id_tache: str = Field(..., alias="ID_TACHE")
-    id_ihm: str = Field(..., alias="ID_IHM")
+    id_client: Optional[int] = Field(None, alias="ID_CLIENT")
+    id_wf: Optional[str] = Field(None, alias="ID_WF")
+    id_tache: Optional[str] = Field(None, alias="ID_TACHE")
+    id_ihm: Optional[str] = Field(None, alias="ID_IHM")
     id_tab: str = Field(..., alias="ID_TAB", description="Detail table id")
     id_tab_maitre: str = Field(..., alias="ID_TAB_MAITRE", description="Master table id")
     id_elem_tab: Optional[str] = Field(None, alias="ID_ELEM_TAB", description="Detail FK column pointing to master")
@@ -87,15 +87,16 @@ class TabDetailIhmWf(BaseModel):
 
 
 class ElementIhmWf(BaseModel):
-    id_client: int = Field(..., alias="ID_CLIENT")
-    id_wf: str = Field(..., alias="ID_WF")
-    id_tache: str = Field(..., alias="ID_TACHE")
-    id_ihm: str = Field(..., alias="ID_IHM")
+    id_client: Optional[int] = Field(None, alias="ID_CLIENT")
+    id_wf: Optional[str] = Field(None, alias="ID_WF")
+    id_tache: Optional[str] = Field(None, alias="ID_TACHE")
+    id_ihm: Optional[str] = Field(None, alias="ID_IHM")
     id_tab: str = Field(..., alias="ID_TAB")
     id_element: str = Field(..., alias="ID_ELEMENT")
     type_element: Optional[str] = Field(None, alias="TYPE_ELEMENT", description="input/select/date/checkbox/grid/etc.")
     longueur_element: Optional[str] = Field(None, alias="LONGEUR_ELEMENT", description="Length/size hint")
     sql_lov_element: Optional[Any] = Field(None, alias="SQL_LOV_ELEMENT", description="SQL or JSON for list-of-values (BLOB)")
+    enum_values: Optional[List[str]] = Field(None, alias="ENUM_VALUES", description="Explicit list of values for select/radio elements")
     transit: str = Field("N", alias="TRANSIT", description="'O' to pass values/navigation, 'N' otherwise")
     position_x: Optional[int] = Field(None, alias="POSITION_X")
     position_y: Optional[int] = Field(None, alias="POSITION_Y")

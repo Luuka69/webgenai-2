@@ -3,83 +3,79 @@ import json
 import logging
 from ai_engine.services.ai_client import call_ollama
 from ai_engine.schemas.pydantic.oracle_payload import WorkflowScreenPayload
+from ai_engine.services.raw_metadata_hydrator import (
+    RawWorkflowScreenPayload,
+    hydrate_oracle_metadata as hydrate_raw_oracle_metadata,
+)
 
 
-SCHEMA_PROMPT = """You are WebGen AI. Given a natural language screen prompt, screen_schema, and context IDs, output JSON matching Oracle metadata tables.
+SCHEMA_PROMPT = """You are an assistant that generates Oracle metadata for workflow-driven screens.
+
+Context:
+- A first LLM generated a high-level screen schema and HTML (preview only).
+- Your job (second step) is ONLY to generate Oracle metadata (no HTML).
+- The backend will fill the workflow IDs itself and then persist into Oracle tables:
+  - TAB_IHM_WF
+  - ELEMENT_IHM_WF
+  - TAB_DETAIL_IHM_WF
+
 Inputs:
-- prompt: "{prompt}"
-- context: {context}
-- screen_schema: {screen_schema}
-Output EXACT JSON with four top-level keys:
-{{
-  "ihm": {{
-    "LOAD_IHM": {{
-      "screenSchema": {{ ... }},   // any schema you infer
-      "html": "<!DOCTYPE html> ...", // full HTML for the screen
-      "version": 1
-    }}
-  }},
-  "tab_ihm_wf": [
-    {{
-      "ID_CLIENT": <int>,
-      "ID_WF": "<wf id>",
-      "ID_TACHE": "<task id>",
-      "ID_IHM": "<screen id>",
-      "ID_TAB": "<UPPERCASE_TABLE_ID>",
-      "TYPE_TAB": "M" or "D",
-      "ID_TAB_MAITRE": null or "<master table id>",
-      "LOAD_TAB": {{ "columns": [ {{ "name": "...", "type": "VARCHAR2(255)", "required": bool }} ], "primaryKey": [...]? }},
-      "DEFAULT_WHERE_TAB": null,
-      "CREATED_AT": null,
-      "UPDATED_AT": null
-    }}
-  ],
-  "element_ihm_wf": [
-    {{
-      "ID_CLIENT": <int>,
-      "ID_WF": "<wf id>",
-      "ID_TACHE": "<task id>",
-      "ID_IHM": "<screen id>",
-      "ID_TAB": "<table id>",
-      "ID_ELEMENT": "<UPPERCASE_ELEMENT_ID>",
-      "TYPE_ELEMENT": "input_text|input_email|textarea|select|date|grid|number|tel|checkbox|radio",
-      "LONGEUR_ELEMENT": "255" ?,
-      "SQL_LOV_ELEMENT": null or string,
-      "TRANSIT": "N",
-      "POSITION_X": <int>,
-      "POSITION_Y": <int>,
-      "HINT_ELEMENT": "<label/placeholder>",
-      "CONTROL_ELEMENT": null,
-      "VALIDATEUR_ELEMENT": {{ "required": bool }}?,
-      "DEFAULT_VALUE_ELEMENT": null,
-      "ACTIVE": "O",
-      "CODITION_ACTIVE": null,
-      "CREATED_AT": null,
-      "UPDATED_AT": null
-    }}
-  ],
-  "tab_detail_ihm_wf": [
-    {{
-      "ID_CLIENT": <int>,
-      "ID_WF": "<wf id>",
-      "ID_TACHE": "<task id>",
-      "ID_IHM": "<screen id>",
-      "ID_TAB": "<detail table id>",
-      "ID_TAB_MAITRE": "<master table id>",
-      "ID_ELEM_TAB": "<fk column>",
-      "ID_ELEM_TAB_MAITRE": "<pk column>",
-      "CREATED_AT": null,
-      "UPDATED_AT": null
-    }}
-  ]
-}}
-Rules:
-- Include ID_CLIENT, ID_WF, ID_TACHE, ID_IHM on every row.
-- Use TYPE_TAB M for master, D for detail; set ID_TAB_MAITRE on details.
-- Use Oracle-like types: text/email/tel/string→VARCHAR2(255); number→NUMBER; date/datetime→DATE; textarea→CLOB; select/radio→VARCHAR2(255) with CHECK in LOAD_TAB if enumValues known.
-- Positions: simple grid numbers (POSITION_X for column, POSITION_Y for row) are fine.
-- If no master-detail, return an empty array for tab_detail_ihm_wf.
-- Return STRICT JSON only; no prose."""
+- description (natural language): "{prompt}"
+- workflow context (for understanding only): {context}
+- optional screen schema + html: {screen_schema}
+
+VERY IMPORTANT RULES
+1) Never invent workflow IDs:
+   - NEVER invent or derive ID_CLIENT / ID_WF / ID_TACHE / ID_IHM.
+   - ALWAYS set those keys to null in your JSON output.
+2) Output MUST be valid JSON only:
+   - Top-level object must be exactly:
+     { "tab_ihm_wf": [...], "element_ihm_wf": [...], "tab_detail_ihm_wf": [...] }
+   - No prose, no markdown, no comments, no trailing commas, no extra top-level keys.
+3) Naming conventions:
+   - ID_TAB and column names and ID_ELEMENT must be UPPER_SNAKE_CASE (ASCII), e.g. SUPPLIER_MASTER, SUPPLIER_ID, SUPPLIER_NAME.
+
+TAB_IHM_WF rules:
+- Create at least 1 master table (TYPE_TAB=\"M\") for the main entity (supplier, purchase order, invoice, reception, etc.).
+- Use TYPE_TAB=\"D\" for detail/line tables if needed.
+- ID_TAB must be present and not null.
+- LOAD_TAB.columns: array of {name,type,required}.
+  - name: UPPER_SNAKE_CASE column name.
+  - type: Oracle type string: NUMBER, VARCHAR2(50), VARCHAR2(255), DATE, CLOB, etc.
+  - required: true if mandatory on screen, else false.
+- LOAD_TAB.primaryKey: list of column names (e.g. [\"ID\"] or [\"LINE_ID\"])
+- DEFAULT_WHERE_TAB: null unless you infer a safe default filter.
+
+ELEMENT_IHM_WF rules:
+- One row per UI element/field.
+- ID_TAB must reference a table from tab_ihm_wf.
+- ID_ELEMENT:
+  - Prefer a column name for persisted fields (e.g. SUPPLIER_NAME).
+  - Use logical names for non-persisted controls (SEARCH, PAGINATION, ADD_BUTTON).
+- TYPE_ELEMENT must reflect semantics:
+  - text -> input_text
+  - email -> input_email
+  - phone -> tel or input_tel
+  - number/money -> input_number
+  - date -> input_date
+  - select/dropdown -> select
+  - textarea/notes -> textarea
+  - action button -> button
+  - pagination control -> pagination
+- LONGEUR_ELEMENT: string length hint (\"50\", \"255\", \"4000\") or null.
+- SQL_LOV_ELEMENT: null or SQL/JSON for list-of-values.
+- ENUM_VALUES: null or list of values (for select/radio).
+- VALIDATEUR_ELEMENT: null or JSON (e.g. {\"required\": true}).
+- ACTIVE: \"O\" for visible; TRANSIT: \"N\" by default.
+- POSITION_X / POSITION_Y: simple integer positions (1,2,3,...).
+
+TAB_DETAIL_IHM_WF:
+- Return [] if no master/detail relationship.
+
+Return ONLY valid JSON."""
+
+
+
 
 
 def build_schema_prompt(prompt: str, screen_schema: Dict[str, Any], context: Dict[str, Any]) -> str:
@@ -91,22 +87,51 @@ def build_schema_prompt(prompt: str, screen_schema: Dict[str, Any], context: Dic
         .replace("{context}", json.dumps(context))
     )
 
-def extract_schema(prompt: str, screen_schema: Dict[str, Any], context: Dict[str, Any]) -> Optional[WorkflowScreenPayload]:
+def extract_schema(prompt: str, screen_schema: Dict[str, Any], context: Dict[str, Any]) -> WorkflowScreenPayload:
     p = build_schema_prompt(prompt, screen_schema, context)
-    resp = call_ollama(p)  # adjust for your model
+    resp = call_ollama(p)
     raw = resp.get("generated") or resp.get("response") or ""
+    logger = logging.getLogger(__name__)
     try:
         data = json.loads(raw) if isinstance(raw, str) else raw
-        ihm = data.get("ihm", {})
-        if isinstance(ihm, dict):
-            ihm.setdefault("ID_CLIENT", context.get("id_client"))
-            ihm.setdefault("ID_WF", context.get("id_wf"))
-            ihm.setdefault("ID_TACHE", context.get("id_tache"))
-            ihm.setdefault("ID_IHM", context.get("id_ihm"))
-            data["ihm"] = ihm
-        return WorkflowScreenPayload(**data)
-    except Exception:
-        logger = logging.getLogger(__name__)
-        logger.warning(f"Failed to parse WorkflowScreenPayload; raw={raw}")
-        return None
+        if isinstance(data, dict) and "ihm" in data:
+            data.pop("ihm")
 
+        # Preferred: Oracle-shaped payload (TAB_IHM_WF / ELEMENT_IHM_WF keys).
+        try:
+            return WorkflowScreenPayload.parse_obj(data)
+        except Exception as oracle_exc:
+            # Fallback: raw (LLM-friendly) payload with keys like id_tab/name/type_tab/load_tab.
+            try:
+                raw_payload = RawWorkflowScreenPayload.parse_obj(data)
+                id_client = context.get("id_client")
+                id_wf = context.get("id_wf")
+                id_tache = context.get("id_tache")
+                id_ihm = context.get("id_ihm")
+
+                if id_client is None or id_wf is None or id_tache is None or id_ihm is None:
+                    raise ValueError("Missing workflow context IDs for raw hydration")
+
+                hydrated_dict = hydrate_raw_oracle_metadata(
+                    raw_payload,
+                    id_client=int(id_client),
+                    id_wf=str(id_wf),
+                    id_tache=str(id_tache),
+                    id_ihm=str(id_ihm),
+                )
+                return WorkflowScreenPayload.parse_obj(hydrated_dict)
+            except Exception as raw_exc:
+                logger.warning(
+                    "Failed to parse schema output; oracle_err=%s raw_err=%s raw=%s",
+                    oracle_exc,
+                    raw_exc,
+                    raw,
+                )
+                return WorkflowScreenPayload(
+                    tab_ihm_wf=[],
+                    element_ihm_wf=[],
+                    tab_detail_ihm_wf=[],
+                )
+    except Exception as exc:
+        logger.warning("Failed to parse schema JSON; err=%s raw=%s", exc, raw)
+        return WorkflowScreenPayload(tab_ihm_wf=[], element_ihm_wf=[], tab_detail_ihm_wf=[])

@@ -30,12 +30,18 @@ async def generate(request: Request):
     if not description:
         return {"error": "Description is required"}
 
+    # Optional workflow context passthrough
+    payload = {"description": description}
+    for key in ("id_client", "id_wf", "id_tache", "id_ihm", "nom_ihm"):
+        if data.get(key) is not None:
+            payload[key] = data.get(key)
+
     timeout = httpx.Timeout(600.0, connect=10.0)
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             response = await client.post(
                 f"{AI_ENGINE_URL}/process",
-                json={"description": description},
+                json=payload,
             )
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:

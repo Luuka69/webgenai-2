@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request
 from ai_engine.services.generation import generate_screen
 from ai_engine.services.storage import StorageService
 from ai_engine.services.workflow_index import WorkflowIndex
+from ai_engine.services.metadata_normalizer import hydrate_oracle_metadata
 from ai_engine.services.schema_generator import extract_schema
 import logging
 
@@ -49,12 +50,30 @@ def list_screens():
 @screens_bp.route('/screens/<screen_id>', methods=['GET'])
 def get_screen_record(screen_id: str):
     wf_id = request.args.get("wf_id")  # required to disambiguate when duplicate ids exist
+    # Allow callers to pass namespaced ids directly as /screens/WF_XYZ:SCREEN_ID
+    if not wf_id and ":" in screen_id:
+        wf_id, screen_id = screen_id.split(":", 1)
     namespaced_id = f"{wf_id}:{screen_id}" if wf_id else screen_id
 
     # Try cache first
     cached = storage.get_generation(namespaced_id)
     if cached:
-        return jsonify(cached)
+        if cached.get("kind") != "workflow_screen":
+            return jsonify(cached)
+        code = cached.get("code")
+        if isinstance(code, str):
+            stripped = code.lstrip()
+            lowered = stripped.lower()
+            is_html = lowered.startswith("<!doctype html")
+            looks_placeholder = (
+                "..." in stripped
+                or "…" in stripped
+                or "truncated" in lowered
+                or "for brevity" in lowered
+            )
+            if is_html and not looks_placeholder:
+                return jsonify(cached)
+        logger.info("Ignoring cached screen due to invalid preview HTML: id=%s", namespaced_id)
 
     # Lookup screen in workflow index
     screen_meta = None
@@ -75,18 +94,32 @@ def get_screen_record(screen_id: str):
     # Generate on first access
     gen_result = generate_screen(screen_meta.get("description", ""))
     if 'error' in gen_result:
+        logger.warning(
+            "generate_screen failed: id=%s error=%s raw=%s",
+            namespaced_id,
+            gen_result.get("error"),
+            (gen_result.get("raw_response") or "")[:2000],
+        )
         return jsonify(gen_result), 502
 
     screen_schema = gen_result.get("screen_schema") or gen_result.get("structure") or {}
+    # Context IDs (lowercase for prompt) and explicit variables for hydration
+    id_client = screen_meta.get("id_client")
+    id_wf_val = screen_meta.get("id_wf") or wf_id
+    id_tache = screen_meta.get("id_tache")
+    id_ihm = screen_id
     context_ids = {
-        "ID_CLIENT": screen_meta.get("id_client"),
-        "ID_WF": screen_meta.get("id_wf") or wf_id,
-        "ID_TACHE": screen_meta.get("id_tache"),
-        "ID_IHM": screen_id,
+        "id_client": id_client,
+        "id_wf": id_wf_val,
+        "id_tache": id_tache,
+        "id_ihm": id_ihm,
     }
-    schema_result = extract_schema(screen_meta.get("description", ""), screen_schema, context_ids)
-    
-    load_ihm = None
+    schema_input = {
+        "screen_schema": screen_schema,
+        "html": gen_result.get("code") or gen_result.get("html") or "",
+    }
+    schema_result = extract_schema(screen_meta.get("description", ""), schema_input, context_ids)
+
     tab_ihm_wf = []
     element_ihm_wf = []
     tab_detail_ihm_wf = []
@@ -94,21 +127,18 @@ def get_screen_record(screen_id: str):
     html_from_schema = None
 
     if schema_result:
-        load_ihm = schema_result.ihm.load_ihm if getattr(schema_result, "ihm", None) else None
-        tab_ihm_wf = schema_result.tab_ihm_wf or []
-        element_ihm_wf = schema_result.element_ihm_wf or []
-        tab_detail_ihm_wf = schema_result.tab_detail_ihm_wf or []
-        # derive name/title from payload if present
-        if getattr(schema_result, "ihm", None) and getattr(schema_result.ihm, "nom_ihm", None):
-            nom_ihm = schema_result.ihm.nom_ihm
-        # try to get HTML from LOAD_IHM
-        if load_ihm and isinstance(load_ihm, dict):
-            html_from_schema = (load_ihm.get("LOAD_IHM") or {}).get("html")
+        schema_result = hydrate_oracle_metadata(
+            schema_result, id_client, id_wf_val, id_tache, id_ihm
+        )
 
+    if schema_result:
+        tab_ihm_wf = [t.dict(by_alias=True) for t in (schema_result.tab_ihm_wf or [])]
+        element_ihm_wf = [e.dict(by_alias=True) for e in (schema_result.element_ihm_wf or [])]
+        tab_detail_ihm_wf = [d.dict(by_alias=True) for d in (schema_result.tab_detail_ihm_wf or [])]
 
-    if screen_meta.get("id_client") and (screen_meta.get("id_wf") or wf_id) and screen_meta.get("id_tache") and screen_id:
+    if id_client and id_wf_val and id_tache and screen_id:
         kind = "workflow_screen"
-        logical_key = f"{screen_meta.get('id_client')}:{screen_meta.get('id_wf') or wf_id}:{screen_meta.get('id_tache')}:{screen_id}"
+        logical_key = f"{id_client}:{id_wf_val}:{id_tache}:{screen_id}"
     else:
         kind = "cached"
         logical_key = None
@@ -135,7 +165,6 @@ def get_screen_record(screen_id: str):
         "id_tache": screen_meta.get("id_tache"),
         "id_ihm": screen_id,
         "nom_ihm": nom_ihm,
-        "load_ihm": load_ihm,
         "tab_ihm_wf": tab_ihm_wf,
         "element_ihm_wf": element_ihm_wf,
         "tab_detail_ihm_wf": tab_detail_ihm_wf,
