@@ -17,3 +17,8 @@ build/
 # Docker
 **/data
 **/logs
+
+# Local backups
+.rebase_backups/
+frontend/src/components.__pre_rebase_untracked/
+frontend/src/services.__pre_rebase_untracked/
