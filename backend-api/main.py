@@ -141,6 +141,34 @@ async def list_workflow_screens(wf_id: str):
         return {"error": "AI engine returned invalid JSON"}
 
 
+@app.put("/api/screens/{screen_id}/elements/{id_element}")
+async def update_screen_element(screen_id: str, id_element: str, request: Request):
+    """
+    Update one ELEMENT_IHM_WF inside a screen.
+    This does NOT regenerate the screen.
+    """
+    payload = await request.json()
+
+    timeout = httpx.Timeout(30.0, connect=10.0)
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            response = await client.put(
+                f"{AI_ENGINE_URL}/screens/{screen_id}/elements/{id_element}",
+                json=payload,
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            return {
+                "error": f"AI engine returned {exc.response.status_code}: {exc.response.text}"
+            }
+        except httpx.RequestError as exc:
+            return {"error": f"Backend could not reach AI engine: {exc}"}
+
+    return {"status": "ok"}
+
+
+
 if __name__ == "__main__":
     import uvicorn
 

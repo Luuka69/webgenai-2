@@ -26,7 +26,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 def _normalize_identifier(value: str) -> str:
@@ -123,6 +123,39 @@ class RawElementIhm(BaseModel):
     class Config:
         extra = "allow"
 
+    @validator("enum_values", pre=True)
+    def _coerce_enum_values(cls, value: Any) -> Optional[List[str]]:
+        """
+        Coerce enum_values into a simple list[str].
+
+        The LLM sometimes returns:
+          - ["MALE", "FEMALE"]
+          - [{"value":"MALE"}, {"value":"FEMALE"}]
+        """
+        if value is None:
+            return None
+        if isinstance(value, (str, int, float, bool)):
+            return [str(value)]
+        if isinstance(value, dict):
+            extracted = value.get("value") or value.get("label") or value.get("name")
+            return [str(extracted)] if extracted is not None else None
+        if isinstance(value, list):
+            out: List[str] = []
+            for item in value:
+                if item is None:
+                    continue
+                if isinstance(item, str):
+                    out.append(item)
+                    continue
+                if isinstance(item, dict):
+                    extracted = item.get("value") or item.get("label") or item.get("name")
+                    if extracted is not None:
+                        out.append(str(extracted))
+                    continue
+                out.append(str(item))
+            return out or None
+        return [str(value)]
+
 
 class RawWorkflowScreenPayload(BaseModel):
     """
@@ -140,10 +173,10 @@ class RawWorkflowScreenPayload(BaseModel):
 
 def hydrate_oracle_metadata(
     raw: RawWorkflowScreenPayload,
-    id_client: int,
-    id_wf: str,
-    id_tache: str,
-    id_ihm: str,
+    id_client: Optional[int],
+    id_wf: Optional[str],
+    id_tache: Optional[str],
+    id_ihm: Optional[str],
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
     Convert raw LLM metadata into Oracle-shaped metadata rows.
@@ -166,7 +199,7 @@ def hydrate_oracle_metadata(
     master_tab_id: Optional[str] = None
 
     for tab in raw.tab_ihm_wf:
-        resolved_id = _normalize_identifier(tab.id_tab or tab.name or id_ihm)
+        resolved_id = _normalize_identifier(tab.id_tab or tab.name or id_ihm or "MAIN")
         resolved_tabs.append((tab, resolved_id))
 
         # Detect master table (first TYPE_TAB="M")
@@ -190,7 +223,9 @@ def hydrate_oracle_metadata(
         type_by_tab[resolved_id] = col_types
 
     if master_tab_id is None:
-        master_tab_id = resolved_tabs[0][1] if resolved_tabs else _normalize_identifier(id_ihm)
+        master_tab_id = (
+            resolved_tabs[0][1] if resolved_tabs else _normalize_identifier(id_ihm or "MAIN")
+        )
 
     # Build Oracle-shaped TAB_IHM_WF rows
     tab_rows: List[Dict[str, Any]] = []

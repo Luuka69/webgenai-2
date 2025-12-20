@@ -34,6 +34,8 @@ VERY IMPORTANT RULES
    - No prose, no markdown, no comments, no trailing commas, no extra top-level keys.
 3) Naming conventions:
    - ID_TAB and column names and ID_ELEMENT must be UPPER_SNAKE_CASE (ASCII), e.g. SUPPLIER_MASTER, SUPPLIER_ID, SUPPLIER_NAME.
+4) ENUM_VALUES format:
+   - ENUM_VALUES must be a JSON array of strings, e.g. ["MALE","FEMALE"] (never objects like {"value":"MALE"}).
 
 TAB_IHM_WF rules:
 - Create at least 1 master table (TYPE_TAB=\"M\") for the main entity (supplier, purchase order, invoice, reception, etc.).
@@ -109,15 +111,12 @@ def extract_schema(prompt: str, screen_schema: Dict[str, Any], context: Dict[str
                 id_tache = context.get("id_tache")
                 id_ihm = context.get("id_ihm")
 
-                if id_client is None or id_wf is None or id_tache is None or id_ihm is None:
-                    raise ValueError("Missing workflow context IDs for raw hydration")
-
                 hydrated_dict = hydrate_raw_oracle_metadata(
                     raw_payload,
-                    id_client=int(id_client),
-                    id_wf=str(id_wf),
-                    id_tache=str(id_tache),
-                    id_ihm=str(id_ihm),
+                    id_client=int(id_client) if id_client is not None else None,
+                    id_wf=str(id_wf) if id_wf is not None else None,
+                    id_tache=str(id_tache) if id_tache is not None else None,
+                    id_ihm=str(id_ihm) if id_ihm is not None else None,
                 )
                 return WorkflowScreenPayload.parse_obj(hydrated_dict)
             except Exception as raw_exc:

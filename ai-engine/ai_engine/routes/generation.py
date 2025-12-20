@@ -49,28 +49,29 @@ def process():
     nom_ihm = data.get("nom_ihm") or (screen_schema.get("title") if isinstance(screen_schema, dict) else None)
     html_from_schema = None  # second LLM no longer returns HTML
 
+    # Second step: extract Oracle-friendly metadata for both cached and workflow screens.
+    # For cached generations, workflow IDs stay null; for workflow generations, we hydrate IDs.
+    context_ids = {
+        "id_client": id_client,
+        "id_wf": id_wf,
+        "id_tache": id_tache,
+        "id_ihm": id_ihm,
+    }
+    schema_input = {
+        "screen_schema": screen_schema,
+        "html": ui_result.get("code") or ui_result.get("html") or "",
+    }
+    schema_result = extract_schema(description, schema_input, context_ids)
+
     if is_workflow:
-        context_ids = {
-            "id_client": id_client,
-            "id_wf": id_wf,
-            "id_tache": id_tache,
-            "id_ihm": id_ihm,
-        }
-        schema_input = {
-            "screen_schema": screen_schema,
-            "html": ui_result.get("code") or ui_result.get("html") or "",
-        }
-        schema_result = extract_schema(description, schema_input, context_ids)
+        schema_result = hydrate_oracle_metadata(
+            schema_result, id_client, id_wf, id_tache, id_ihm
+        )
 
-        if schema_result:
-            schema_result = hydrate_oracle_metadata(
-                schema_result, id_client, id_wf, id_tache, id_ihm
-            )
-
-        if isinstance(schema_result, WorkflowScreenPayload):
-            tab_ihm_wf = [t.dict(by_alias=True) for t in (schema_result.tab_ihm_wf or [])]
-            element_ihm_wf = [e.dict(by_alias=True) for e in (schema_result.element_ihm_wf or [])]
-            tab_detail_ihm_wf = [d.dict(by_alias=True) for d in (schema_result.tab_detail_ihm_wf or [])]
+    if isinstance(schema_result, WorkflowScreenPayload):
+        tab_ihm_wf = [t.dict(by_alias=True) for t in (schema_result.tab_ihm_wf or [])]
+        element_ihm_wf = [e.dict(by_alias=True) for e in (schema_result.element_ihm_wf or [])]
+        tab_detail_ihm_wf = [d.dict(by_alias=True) for d in (schema_result.tab_detail_ihm_wf or [])]
 
     # Determine storage kind/logical_key
     if is_workflow:

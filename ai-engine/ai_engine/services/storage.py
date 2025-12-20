@@ -129,3 +129,43 @@ class StorageService:
     def list_generations_by_kind(self, kind: str) -> List[Dict[str, Any]]:
         kind = kind or "cached"
         return [rec for rec in self.list_generations() if rec.get("kind", "cached") == kind]
+
+    def update_generation(self, gen_id: str, updater_fn) -> Optional[Dict[str, Any]]:
+        """
+        Update an existing generation in-place by rewriting the jsonl file.
+        updater_fn takes the record and mutates it.
+        """
+        records = self.list_generations()
+        updated_record = None
+
+        for rec in records:
+            if rec.get("id") == gen_id:
+                updater_fn(rec)
+                rec["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                updated_record = rec
+                break
+
+        if not updated_record:
+            return None
+
+        # Rewrite FULL file (safe & simple)
+        with GEN_FILE.open("w", encoding="utf-8") as f:
+            for rec in records:
+                f.write(json.dumps(rec) + "\n")
+
+        # Rebuild index (VERY IMPORTANT)
+        index = {}
+        offset = 0
+        for rec in records:
+            line = json.dumps(rec) + "\n"
+            index[rec["id"]] = {
+                "offset": offset,
+                "length": len(line),
+                "kind": rec.get("kind", "cached"),
+                "logical_key": rec.get("logical_key"),
+            }
+            offset += len(line)
+
+        self._write_index(index)
+
+        return updated_record

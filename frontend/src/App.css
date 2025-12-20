@@ -1,3 +1,4 @@
+
 /* Reset defaults */
 * {
   box-sizing: border-box;
@@ -252,6 +253,7 @@ footer {
   color: #555;
   font-weight: 500;
 }
+
 
 /* Responsive: Stack vertically on mobile */
 @media (max-width: 900px) {

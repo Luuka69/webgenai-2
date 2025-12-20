@@ -3,9 +3,9 @@
 **WebGen AI** is a full‑stack platform that generates **complete HTML/CSS screens** from a natural language description.
 It uses an **Ollama-hosted LLM** (Mistral by default) and provides a **live preview** UI.
 
-It also supports **workflow screens**: when workflow identifiers are provided (`id_client`, `id_wf`, `id_tache`, `id_ihm`),
-the AI engine enriches the result with **Oracle-friendly metadata payloads**
-(`tab_ihm_wf`, `element_ihm_wf`, `tab_detail_ihm_wf`) and persists generations in `ai-engine/.data/`.
+The AI engine also produces **Oracle-friendly metadata payloads**
+(`tab_ihm_wf`, `element_ihm_wf`, `tab_detail_ihm_wf`).
+When workflow identifiers are provided (`id_client`, `id_wf`, `id_tache`, `id_ihm`), it hydrates those IDs and stores the result as a `workflow_screen`.
 
 ---
 

@@ -172,6 +172,33 @@ def get_screen_record(screen_id: str):
 
     return jsonify(record)
 
+@screens_bp.route('/screens/<screen_id>/elements/<id_element>', methods=['PUT'])
+def update_screen_element(screen_id: str, id_element: str):
+    payload = request.get_json(silent=True) or {}
+
+    def updater(record):
+        elements = record.get("element_ihm_wf", [])
+        for idx, el in enumerate(elements):
+            if el.get("ID_ELEMENT") == id_element:
+                elements[idx] = {
+                    **el,
+                    **payload,
+                    "ID_ELEMENT": id_element,
+                }
+                return
+        raise ValueError("Element not found")
+
+    try:
+        updated = storage.update_generation(screen_id, updater)
+    except ValueError:
+        return jsonify({"error": "Element not found"}), 404
+
+    if not updated:
+        return jsonify({"error": "Screen not found"}), 404
+
+    return jsonify({"status": "ok"})
+
+
 @screens_bp.route('/workflows', methods=['GET'])
 def list_workflows():
     return jsonify(workflow_index.list_workflows())
