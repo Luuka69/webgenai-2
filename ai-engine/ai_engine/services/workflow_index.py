@@ -1,10 +1,15 @@
+import os
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# Default to repo-level .data/workflows.json (ai-engine/.data/workflows.json)
-WORKFLOWS_PATH = (
-    Path(__file__).resolve().parent.parent.parent / ".data" / "workflows.json"
+# Default to the same directory used by StorageService (AI_ENGINE_STORAGE_DIR).
+# This allows docker bind-mounting `ai-engine/.data` into the container without path mismatches.
+_DEFAULT_STORAGE_DIR = Path(
+    os.getenv("AI_ENGINE_STORAGE_DIR", "/opt/webgenai/webgen-ai/ai-engine/.data")
+)
+WORKFLOWS_PATH = Path(
+    os.getenv("AI_ENGINE_WORKFLOWS_PATH") or (_DEFAULT_STORAGE_DIR / "workflows.json")
 )
 
 class WorkflowIndex:

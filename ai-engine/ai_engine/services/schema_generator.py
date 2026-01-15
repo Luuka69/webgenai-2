@@ -41,11 +41,9 @@ TAB_IHM_WF rules:
 - Create at least 1 master table (TYPE_TAB=\"M\") for the main entity (supplier, purchase order, invoice, reception, etc.).
 - Use TYPE_TAB=\"D\" for detail/line tables if needed.
 - ID_TAB must be present and not null.
-- LOAD_TAB.columns: array of {name,type,required}.
-  - name: UPPER_SNAKE_CASE column name.
-  - type: Oracle type string: NUMBER, VARCHAR2(50), VARCHAR2(255), DATE, CLOB, etc.
-  - required: true if mandatory on screen, else false.
-- LOAD_TAB.primaryKey: list of column names (e.g. [\"ID\"] or [\"LINE_ID\"])
+- LOAD_TAB is optional. The backend derives LOAD_TAB.columns and sql_ddl from ELEMENT_IHM_WF (elements define schema).
+- You MAY set LOAD_TAB.primaryKey: list of column names that MUST match ID_ELEMENT of data fields (e.g. [\"SUPPLIER_ID\"]).
+- If you include LOAD_TAB.columns, set it to [] (do not invent columns here).
 - DEFAULT_WHERE_TAB: null unless you infer a safe default filter.
 
 ELEMENT_IHM_WF rules:
@@ -67,7 +65,7 @@ ELEMENT_IHM_WF rules:
 - LONGEUR_ELEMENT: string length hint (\"50\", \"255\", \"4000\") or null.
 - SQL_LOV_ELEMENT: null or SQL/JSON for list-of-values.
 - ENUM_VALUES: null or list of values (for select/radio).
-- VALIDATEUR_ELEMENT: null or JSON (e.g. {\"required\": true}).
+- VALIDATEUR_ELEMENT: JSON object (at least {\"required\": true/false}); do NOT output null.
 - ACTIVE: \"O\" for visible; TRANSIT: \"N\" by default.
 - POSITION_X / POSITION_Y: simple integer positions (1,2,3,...).
 

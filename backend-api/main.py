@@ -141,6 +141,27 @@ async def list_workflow_screens(wf_id: str):
         return {"error": "AI engine returned invalid JSON"}
 
 
+
+@app.post("/api/screens/{screen_id}/elements")
+async def add_screen_element(screen_id: str, request: Request):
+    payload = await request.json()
+    timeout = httpx.Timeout(30.0, connect=10.0)
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            response = await client.post(
+                f"{AI_ENGINE_URL}/screens/{screen_id}/elements",
+                json=payload,
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            return {"error": f"AI engine returned {exc.response.status_code}: {exc.response.text}"}
+        except httpx.RequestError as exc:
+            return {"error": f"Backend could not reach AI engine: {exc}"}
+
+    return response.json()
+
+
 @app.put("/api/screens/{screen_id}/elements/{id_element}")
 async def update_screen_element(screen_id: str, id_element: str, request: Request):
     """

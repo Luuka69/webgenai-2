@@ -3,7 +3,6 @@ from flask import Flask
 
 from ai_engine.routes.generation import generation_bp
 from ai_engine.routes.screens import screens_bp
-from ai_engine.routes.schema import schema_bp
 
 
 
@@ -13,7 +12,6 @@ def create_app() -> Flask:
     # register blueprints
     app.register_blueprint(generation_bp)
     app.register_blueprint(screens_bp)
-    app.register_blueprint(schema_bp)   # add this
 
     return app
 

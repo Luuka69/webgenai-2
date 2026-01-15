@@ -11,8 +11,12 @@ import BooleanInput from "../fields/BooleanInput";
 import TelInput from "../fields/TelInput";
 import HiddenInput from "../fields/HiddenInput";
 import Pagination from "../fields/Pagination";
+import TableInput from "../fields/TableInput";
+import PInput from "../fields/PInput";
+import H2Input from "../fields/H2Input";
 
-export default function FieldWrapper({ element, editable, onSelect, value, onValueChange }) {
+
+export default function FieldWrapper({ element, editable, onSelect, value, onValueChange, onElementMetaChange }) {
   const common = {
     label: element.ID_ELEMENT,
     required: element.VALIDATEUR_ELEMENT?.required,
@@ -63,6 +67,41 @@ export default function FieldWrapper({ element, editable, onSelect, value, onVal
       break;
     case "pagination":
       node = <Pagination {...common} />;
+      break;
+    case "table":
+      node = (
+        <TableInput
+          {...common}
+          columns={element?.CONTROL_ELEMENT?.table?.columns}
+          onColumnsChange={(nextCols) => {
+            if (!onElementMetaChange) return;
+
+            onElementMetaChange(element.ID_ELEMENT, (prev) => {
+              const baseCtrl =
+                prev?.CONTROL_ELEMENT && typeof prev.CONTROL_ELEMENT === "object"
+                  ? prev.CONTROL_ELEMENT
+                  : {};
+
+              return {
+                ...prev,
+                CONTROL_ELEMENT: {
+                  ...baseCtrl,
+                  table: {
+                    ...(baseCtrl.table || {}),
+                    columns: nextCols,
+                  },
+                },
+              };
+            });
+          }}
+        />
+      );
+      break;
+    case "p":
+      node = <PInput {...common} />;
+      break;
+    case "h2":
+      node = <H2Input {...common} />;
       break;
     default:
       node = (

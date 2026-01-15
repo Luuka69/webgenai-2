@@ -132,6 +132,371 @@
           ]
         }
       ]
+    },
+    {
+      "id_client": 1,
+      "id_wf": "74WYZ2LCCU",
+      "name": "Processus (extrait du PDF)",
+      "tasks": [
+        {
+          "id_tache": "7MKXIV3DUP",
+          "name": "Réception commande Client",
+          "screens": [
+            {
+              "id_ihm": "M5HA2TOOMP",
+              "name": "Réception commande Client",
+              "description": "Screen for 'Réception commande Client'. Must allow: Saisie des informations client ; Saisie des informations échantillons ; Sélection du type d'essai dans le catalogue ; Génération automatique de la référence COMMERCIAL et TECHNIQUE."
+            }
+          ]
+        },
+        {
+          "id_tache": "PRA6IB5LPC",
+          "name": "Validation commande client",
+          "screens": [
+            {
+              "id_ihm": "EYNPOG4NH2",
+              "name": "Validation commande client",
+              "description": "Validation commande client : Attribution de la commande au responsable de section identifié par la référence TECHNIQUE ; Vérification des échantillons ; Vérification des sections ; Affectation au technicien."
+            }
+          ]
+        },
+        {
+          "id_tache": "EL3QZL742T",
+          "name": "Exécution",
+          "screens": [
+            {
+              "id_ihm": "OEAHM3THMW",
+              "name": "Exécution",
+              "description": "Screen for 'Exécution'. Must allow: Saisie des données des essais ; Validation des résultats des essais."
+            }
+          ]
+        },
+        {
+          "id_tache": "7GQX2F3YJK",
+          "name": "Analyse",
+          "screens": [
+            {
+              "id_ihm": "SMMFRAVJFR",
+              "name": "Analyse",
+              "description": "Analyse : Exécution des calculs automatiques ; Vérification des plages de validité ; Rédaction des commentaires techniques ; Préparation des conclusions."
+            }
+          ]
+        },
+        {
+          "id_tache": "MILIDWQZ7V",
+          "name": "Rapport",
+          "screens": [
+            {
+              "id_ihm": "P3GWXZPYU2",
+              "name": "Rapport",
+              "description": "Rapport : Génération du rapport ; Validation hiérarchique."
+            }
+          ]
+        },
+        {
+          "id_tache": "H232XITND4",
+          "name": "Clôture",
+          "screens": [
+            {
+              "id_ihm": "NJCA7674GU",
+              "name": "Clôture",
+              "description": "Clôture : Publication et notification client ; Archivage sécurisé ; Facturation."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id_client": 1,
+      "id_wf": "74WYZ2LCCU",
+      "name": "Processus (extrait du PDF)",
+      "tasks": [
+        {
+          "id_tache": "7MKXIV3DUP",
+          "name": "Réception commande Client",
+          "screens": [
+            {
+              "id_ihm": "M5HA2TOOMP",
+              "name": "Réception commande Client",
+              "description": "Screen for 'Réception commande Client'. Must allow: Saisie des informations client ; Saisie des informations échantillons ; Sélection du type d'essai dans le catalogue ; Génération automatique de la référence COMMERCIAL et TECHNIQUE."
+            }
+          ]
+        },
+        {
+          "id_tache": "PRA6IB5LPC",
+          "name": "Validation commande client",
+          "screens": [
+            {
+              "id_ihm": "EYNPOG4NH2",
+              "name": "Validation commande client",
+              "description": "Validation commande client : Attribution de la commande au responsable de section identifié par la référence TECHNIQUE ; Vérification des échantillons ; Vérification des sections ; Affectation au technicien."
+            }
+          ]
+        },
+        {
+          "id_tache": "EL3QZL742T",
+          "name": "Exécution",
+          "screens": [
+            {
+              "id_ihm": "OEAHM3THMW",
+              "name": "Exécution",
+              "description": "Screen for 'Exécution'. Must allow: Saisie des données des essais ; Validation des résultats des essais."
+            }
+          ]
+        },
+        {
+          "id_tache": "7GQX2F3YJK",
+          "name": "Analyse",
+          "screens": [
+            {
+              "id_ihm": "SMMFRAVJFR",
+              "name": "Analyse",
+              "description": "Analyse : Exécution des calculs automatiques ; Vérification des plages de validité ; Rédaction des commentaires techniques ; Préparation des conclusions."
+            }
+          ]
+        },
+        {
+          "id_tache": "MILIDWQZ7V",
+          "name": "Rapport",
+          "screens": [
+            {
+              "id_ihm": "P3GWXZPYU2",
+              "name": "Rapport",
+              "description": "Rapport : Génération du rapport ; Validation hiérarchique."
+            }
+          ]
+        },
+        {
+          "id_tache": "H232XITND4",
+          "name": "Clôture",
+          "screens": [
+            {
+              "id_ihm": "NJCA7674GU",
+              "name": "Clôture",
+              "description": "Clôture : Publication et notification client ; Archivage sécurisé ; Facturation."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id_client": 1,
+      "id_wf": "74WYZ2LCCU",
+      "name": "Processus (extrait du PDF)",
+      "tasks": [
+        {
+          "id_tache": "7MKXIV3DUP",
+          "name": "Réception commande Client",
+          "screens": [
+            {
+              "id_ihm": "M5HA2TOOMP",
+              "name": "Réception commande Client",
+              "description": "Screen for 'Réception commande Client'. Must allow: Saisie des informations client ; Saisie des informations échantillons ; Sélection du type d'essai dans le catalogue ; Génération automatique de la référence COMMERCIAL et TECHNIQUE."
+            }
+          ]
+        },
+        {
+          "id_tache": "PRA6IB5LPC",
+          "name": "Validation commande client",
+          "screens": [
+            {
+              "id_ihm": "EYNPOG4NH2",
+              "name": "Validation commande client",
+              "description": "Validation commande client : Attribution de la commande au responsable de section identifié par la référence TECHNIQUE ; Vérification des échantillons ; Vérification des sections ; Affectation au technicien."
+            }
+          ]
+        },
+        {
+          "id_tache": "EL3QZL742T",
+          "name": "Exécution",
+          "screens": [
+            {
+              "id_ihm": "OEAHM3THMW",
+              "name": "Exécution",
+              "description": "Screen for 'Exécution'. Must allow: Saisie des données des essais ; Validation des résultats des essais."
+            }
+          ]
+        },
+        {
+          "id_tache": "7GQX2F3YJK",
+          "name": "Analyse",
+          "screens": [
+            {
+              "id_ihm": "SMMFRAVJFR",
+              "name": "Analyse",
+              "description": "Analyse : Exécution des calculs automatiques ; Vérification des plages de validité ; Rédaction des commentaires techniques ; Préparation des conclusions."
+            }
+          ]
+        },
+        {
+          "id_tache": "MILIDWQZ7V",
+          "name": "Rapport",
+          "screens": [
+            {
+              "id_ihm": "P3GWXZPYU2",
+              "name": "Rapport",
+              "description": "Rapport : Génération du rapport ; Validation hiérarchique."
+            }
+          ]
+        },
+        {
+          "id_tache": "H232XITND4",
+          "name": "Clôture",
+          "screens": [
+            {
+              "id_ihm": "NJCA7674GU",
+              "name": "Clôture",
+              "description": "Clôture : Publication et notification client ; Archivage sécurisé ; Facturation."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id_client": 1,
+      "id_wf": "74WYZ2LCCU",
+      "name": "Processus (extrait du PDF)",
+      "tasks": [
+        {
+          "id_tache": "7MKXIV3DUP",
+          "name": "Réception commande Client",
+          "screens": [
+            {
+              "id_ihm": "M5HA2TOOMP",
+              "name": "Réception commande Client",
+              "description": "Screen for 'Réception commande Client'. Must allow: Saisie des informations client ; Saisie des informations échantillons ; Sélection du type d'essai dans le catalogue ; Génération automatique de la référence COMMERCIAL et TECHNIQUE."
+            }
+          ]
+        },
+        {
+          "id_tache": "PRA6IB5LPC",
+          "name": "Validation commande client",
+          "screens": [
+            {
+              "id_ihm": "EYNPOG4NH2",
+              "name": "Validation commande client",
+              "description": "Validation commande client : Attribution de la commande au responsable de section identifié par la référence TECHNIQUE ; Vérification des échantillons ; Vérification des sections ; Affectation au technicien."
+            }
+          ]
+        },
+        {
+          "id_tache": "EL3QZL742T",
+          "name": "Exécution",
+          "screens": [
+            {
+              "id_ihm": "OEAHM3THMW",
+              "name": "Exécution",
+              "description": "Screen for 'Exécution'. Must allow: Saisie des données des essais ; Validation des résultats des essais."
+            }
+          ]
+        },
+        {
+          "id_tache": "7GQX2F3YJK",
+          "name": "Analyse",
+          "screens": [
+            {
+              "id_ihm": "SMMFRAVJFR",
+              "name": "Analyse",
+              "description": "Analyse : Exécution des calculs automatiques ; Vérification des plages de validité ; Rédaction des commentaires techniques ; Préparation des conclusions."
+            }
+          ]
+        },
+        {
+          "id_tache": "MILIDWQZ7V",
+          "name": "Rapport",
+          "screens": [
+            {
+              "id_ihm": "P3GWXZPYU2",
+              "name": "Rapport",
+              "description": "Rapport : Génération du rapport ; Validation hiérarchique."
+            }
+          ]
+        },
+        {
+          "id_tache": "H232XITND4",
+          "name": "Clôture",
+          "screens": [
+            {
+              "id_ihm": "NJCA7674GU",
+              "name": "Clôture",
+              "description": "Clôture : Publication et notification client ; Archivage sécurisé ; Facturation."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id_client": 1,
+      "id_wf": "74WYZ2LCCU",
+      "name": "Processus (extrait du PDF)",
+      "tasks": [
+        {
+          "id_tache": "7MKXIV3DUP",
+          "name": "Réception commande Client",
+          "screens": [
+            {
+              "id_ihm": "M5HA2TOOMP",
+              "name": "Réception commande Client",
+              "description": "Screen for 'Réception commande Client'. Must allow: Saisie des informations client ; Saisie des informations échantillons ; Sélection du type d'essai dans le catalogue ; Génération automatique de la référence COMMERCIAL et TECHNIQUE."
+            }
+          ]
+        },
+        {
+          "id_tache": "PRA6IB5LPC",
+          "name": "Validation commande client",
+          "screens": [
+            {
+              "id_ihm": "EYNPOG4NH2",
+              "name": "Validation commande client",
+              "description": "Validation commande client : Attribution de la commande au responsable de section identifié par la référence TECHNIQUE ; Vérification des échantillons ; Vérification des sections ; Affectation au technicien."
+            }
+          ]
+        },
+        {
+          "id_tache": "EL3QZL742T",
+          "name": "Exécution",
+          "screens": [
+            {
+              "id_ihm": "OEAHM3THMW",
+              "name": "Exécution",
+              "description": "Screen for 'Exécution'. Must allow: Saisie des données des essais ; Validation des résultats des essais."
+            }
+          ]
+        },
+        {
+          "id_tache": "7GQX2F3YJK",
+          "name": "Analyse",
+          "screens": [
+            {
+              "id_ihm": "SMMFRAVJFR",
+              "name": "Analyse",
+              "description": "Analyse : Exécution des calculs automatiques ; Vérification des plages de validité ; Rédaction des commentaires techniques ; Préparation des conclusions."
+            }
+          ]
+        },
+        {
+          "id_tache": "MILIDWQZ7V",
+          "name": "Rapport",
+          "screens": [
+            {
+              "id_ihm": "P3GWXZPYU2",
+              "name": "Rapport",
+              "description": "Rapport : Génération du rapport ; Validation hiérarchique."
+            }
+          ]
+        },
+        {
+          "id_tache": "H232XITND4",
+          "name": "Clôture",
+          "screens": [
+            {
+              "id_ihm": "NJCA7674GU",
+              "name": "Clôture",
+              "description": "Clôture : Publication et notification client ; Archivage sécurisé ; Facturation."
+            }
+          ]
+        }
+      ]
     }
   ]
 }

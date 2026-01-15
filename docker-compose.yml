@@ -13,6 +13,7 @@ services:
       - ollama
     networks:
       - webnet
+    
 
   ai-engine:
     build: ./ai-engine
@@ -26,6 +27,8 @@ services:
       - ollama
     networks:
       - webnet
+    volumes:
+      - /opt/webgenai/webgen-ai/ai-engine/.data:/opt/webgenai/webgen-ai/ai-engine/.data
 
   frontend:
     build: ./frontend
@@ -41,7 +44,7 @@ services:
     image: ollama/ollama:latest
     container_name: webgen-ai-ollama
     ports:
-      - "11434:11434"
+      - "11436:11434"
     volumes:
       - ollama-data:/root/.ollama
     restart: unless-stopped

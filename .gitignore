@@ -18,6 +18,9 @@ build/
 **/data
 **/logs
 
+# Runtime locks
+ai-engine/.data/*.lock
+
 # Local backups
 .rebase_backups/
 frontend/src/components.__pre_rebase_untracked/

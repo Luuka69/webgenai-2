@@ -79,6 +79,31 @@ export default function FieldEditorDrawer({ open, element, onChange, onSave, onC
             />
           </Field>
 
+          {/* ✅ TABLE COLUMN EDITOR */}
+          {element.TYPE_ELEMENT === "table" && (
+            <Field label="TABLE_COLUMNS">
+              <TableColumnsEditor
+                columns={element?.CONTROL_ELEMENT?.table?.columns}
+                onChange={(nextCols) => {
+                  const baseCtrl =
+                    element.CONTROL_ELEMENT && typeof element.CONTROL_ELEMENT === "object"
+                      ? element.CONTROL_ELEMENT
+                      : {};
+
+                  update("CONTROL_ELEMENT", {
+                    ...baseCtrl,
+                    table: {
+                      ...(baseCtrl.table || {}),
+                      columns: nextCols,
+                    },
+                  });
+                }}
+              />
+              <div className="mt-2 text-xs text-gray-500">
+                Change <b>label</b> to rename header. Keep <b>key</b> stable.
+              </div>
+            </Field>
+          )}
 
           <Field label="VALIDATEUR_ELEMENT (JSON)">
             <textarea
@@ -142,6 +167,7 @@ function Field({ label, children }) {
     </div>
   );
 }
+
 function EnumEditor({ values, onChange }) {
   const safe = Array.isArray(values) ? values : [];
 
@@ -160,11 +186,7 @@ function EnumEditor({ values, onChange }) {
 
   return (
     <div className="space-y-2">
-      {safe.length === 0 && (
-        <div className="text-xs text-gray-500">
-          No enum values yet.
-        </div>
-      )}
+      {safe.length === 0 && <div className="text-xs text-gray-500">No enum values yet.</div>}
 
       {safe.map((v, idx) => (
         <div key={idx} className="flex gap-2">
@@ -191,6 +213,92 @@ function EnumEditor({ values, onChange }) {
         className="w-full py-2 rounded-lg border font-medium hover:bg-gray-50"
       >
         + Add value
+      </button>
+    </div>
+  );
+}
+
+/* =========================
+   TABLE COLUMNS EDITOR
+   ========================= */
+
+function normalizeCols(cols) {
+  if (!Array.isArray(cols)) return [];
+  return cols
+    .map((c) => {
+      if (!c) return null;
+      if (typeof c === "string") return { key: c, label: c };
+      if (typeof c === "object") {
+        const key = String(c.key ?? "").trim();
+        const label = String(c.label ?? key).trim();
+        if (!key) return null;
+        return { key, label: label || key };
+      }
+      return null;
+    })
+    .filter(Boolean);
+}
+
+function nextColKey(existing) {
+  let i = 1;
+  while (existing.has(`COL${i}`)) i += 1;
+  return `COL${i}`;
+}
+
+function TableColumnsEditor({ columns, onChange }) {
+  const safe = normalizeCols(columns);
+
+  const setLabelAt = (idx, label) => {
+    const next = [...safe];
+    next[idx] = { ...next[idx], label };
+    onChange(next);
+  };
+
+  const addOne = () => {
+    const keys = new Set(safe.map((c) => c.key));
+    const key = nextColKey(keys);
+    onChange([...(safe || []), { key, label: key }]);
+  };
+
+  const removeAt = (idx) => {
+    const next = safe.filter((_, i) => i !== idx);
+    onChange(next);
+  };
+
+  return (
+    <div className="space-y-2">
+      {safe.length === 0 && <div className="text-xs text-gray-500">No columns yet.</div>}
+
+      {safe.map((c, idx) => (
+        <div key={c.key} className="flex items-center gap-2">
+          <div className="w-[110px] text-xs text-gray-500 font-mono truncate" title={c.key}>
+            {c.key}
+          </div>
+
+          <input
+            className="input flex-1"
+            value={c.label ?? ""}
+            onChange={(e) => setLabelAt(idx, e.target.value)}
+            placeholder="Column label"
+          />
+
+          <button
+            type="button"
+            onClick={() => removeAt(idx)}
+            className="px-3 rounded-lg border hover:bg-gray-50"
+            title="Remove column"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={addOne}
+        className="w-full py-2 rounded-lg border font-medium hover:bg-gray-50"
+      >
+        + Add column
       </button>
     </div>
   );

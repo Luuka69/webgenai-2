@@ -5,7 +5,12 @@ from ai_engine.services.generation import generate_screen
 from ai_engine.services.schema_generator import extract_schema
 from ai_engine.services.storage import StorageService
 from ai_engine.schemas.pydantic.oracle_payload import WorkflowScreenPayload
-from ai_engine.services.metadata_normalizer import hydrate_oracle_metadata
+from ai_engine.services.metadata_normalizer import (
+    derive_load_tab_from_elements,
+    hydrate_oracle_metadata,
+    enforce_minimum_metadata,
+)
+
 
 
 generation_bp = Blueprint('generation', __name__)
@@ -61,7 +66,16 @@ def process():
         "screen_schema": screen_schema,
         "html": ui_result.get("code") or ui_result.get("html") or "",
     }
+    
     schema_result = extract_schema(description, schema_input, context_ids)
+
+    if isinstance(schema_result, WorkflowScreenPayload):
+        schema_result = enforce_minimum_metadata(
+            schema_result,
+            schema_input.get("html") or "",
+            description,
+        )
+
 
     if is_workflow:
         schema_result = hydrate_oracle_metadata(
@@ -69,6 +83,7 @@ def process():
         )
 
     if isinstance(schema_result, WorkflowScreenPayload):
+        derive_load_tab_from_elements(schema_result)
         tab_ihm_wf = [t.dict(by_alias=True) for t in (schema_result.tab_ihm_wf or [])]
         element_ihm_wf = [e.dict(by_alias=True) for e in (schema_result.element_ihm_wf or [])]
         tab_detail_ihm_wf = [d.dict(by_alias=True) for d in (schema_result.tab_detail_ihm_wf or [])]

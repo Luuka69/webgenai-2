@@ -94,7 +94,8 @@ class RawTabIhm(BaseModel):
     id_tab: Optional[str] = None
     name: Optional[str] = None
     type_tab: str = "M"  # "M" master, "D" detail
-    load_tab: LoadTab
+    # LLMs often omit load_tab entirely; default to an empty structure so we can still hydrate.
+    load_tab: LoadTab = Field(default_factory=LoadTab)
     default_where_tab: Optional[Any] = None
 
     class Config:
@@ -310,8 +311,74 @@ def hydrate_oracle_metadata(
             }
         )
 
-    # TAB_DETAIL_IHM_WF is forwarded as-is (caller can normalize/fill IDs later if desired).
-    tab_detail_rows: List[Dict[str, Any]] = [dict(r) for r in (raw.tab_detail_ihm_wf or [])]
+    # TAB_DETAIL_IHM_WF:
+    # - LLMs often output non-Oracle keys (e.g. id_master_table/id_detail_table).
+    # - Oracle payload requires at least ID_TAB + ID_TAB_MAITRE, so we derive a safe
+    #   relation from the TAB_IHM_WF rows and then augment it with any usable fields
+    #   from raw.tab_detail_ihm_wf when present.
+    tab_detail_map: Dict[tuple[str, str], Dict[str, Any]] = {}
+
+    def _ensure_rel(detail: Optional[str], master: Optional[str]) -> Optional[Dict[str, Any]]:
+        if not detail or not master:
+            return None
+        detail_id = _normalize_identifier(str(detail))
+        master_id = _normalize_identifier(str(master))
+        key = (detail_id, master_id)
+        row = tab_detail_map.get(key)
+        if row:
+            return row
+        row = {
+            "ID_CLIENT": id_client,
+            "ID_WF": id_wf,
+            "ID_TACHE": id_tache,
+            "ID_IHM": id_ihm,
+            "ID_TAB": detail_id,
+            "ID_TAB_MAITRE": master_id,
+            "ID_ELEM_TAB": None,
+            "ID_ELEM_TAB_MAITRE": None,
+            "CREATED_AT": None,
+            "UPDATED_AT": None,
+        }
+        tab_detail_map[key] = row
+        return row
+
+    # Always derive relations from the tab definitions.
+    for tab_row in tab_rows:
+        if tab_row.get("TYPE_TAB") == "D":
+            _ensure_rel(tab_row.get("ID_TAB"), tab_row.get("ID_TAB_MAITRE") or master_tab_id)
+
+    # Best-effort mapping of common raw shapes.
+    for rel in raw.tab_detail_ihm_wf or []:
+        if not isinstance(rel, dict):
+            continue
+        detail = (
+            rel.get("ID_TAB")
+            or rel.get("id_tab")
+            or rel.get("id_detail_table")
+            or rel.get("id_detail_tab")
+            or rel.get("id_detail")
+        )
+        master = (
+            rel.get("ID_TAB_MAITRE")
+            or rel.get("id_tab_maitre")
+            or rel.get("id_master_table")
+            or rel.get("id_master_tab")
+            or rel.get("id_master")
+        )
+        row = _ensure_rel(detail, master)
+        if not row:
+            continue
+
+        # Optional FK hints (best-effort).
+        id_elem_tab = rel.get("ID_ELEM_TAB") or rel.get("id_elem_tab")
+        id_elem_tab_maitre = rel.get("ID_ELEM_TAB_MAITRE") or rel.get("id_elem_tab_maitre")
+
+        if row.get("ID_ELEM_TAB") in (None, "") and id_elem_tab:
+            row["ID_ELEM_TAB"] = _normalize_identifier(str(id_elem_tab))
+        if row.get("ID_ELEM_TAB_MAITRE") in (None, "") and id_elem_tab_maitre:
+            row["ID_ELEM_TAB_MAITRE"] = _normalize_identifier(str(id_elem_tab_maitre))
+
+    tab_detail_rows: List[Dict[str, Any]] = list(tab_detail_map.values())
 
     return {
         "tab_ihm_wf": tab_rows,
